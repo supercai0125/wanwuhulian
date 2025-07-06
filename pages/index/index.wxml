@@ -1,0 +1,67 @@
+<!--index.wxml-->
+<navigation-bar title="明治物联" back="{{false}}" color="white" background="#1E90FF"></navigation-bar>
+<view class="page-container">
+  <view class="header">
+    <view class="title">我的设备</view>
+    <view class="header-actions">
+      <view class="refresh-btn" bindtap="checkDevicesOnlineStatus" wx:if="{{discoveredDevices.length > 0 && !isCheckingOnlineStatus}}">
+        <text class="refresh-icon">🔄</text>
+        <text>检查状态</text>
+      </view>
+      <view class="add-btn" bindtap="goToScan">
+        <text class="add-icon">+</text>
+        <text>扫描设备</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 检测状态指示器 -->
+  <view class="status-indicator-bar" wx:if="{{isCheckingOnlineStatus}}">
+    <text class="loading-icon">⟳</text>
+    <text>正在检测设备在线状态...</text>
+  </view>
+  
+
+  
+  <!-- 统一的设备列表 -->
+  <view class="device-list" wx:if="{{discoveredDevices.length > 0}}">
+    <view class="device-item" wx:for="{{discoveredDevices}}" wx:key="rollingCode" bindtap="goToDiscoveredDeviceControl" bindlongpress="deleteDevice" data-rollingcode="{{item.rollingCode}}" data-index="{{index}}" data-offline="{{!item.isOnline}}">
+      <view class="device-icon">
+        <text class="rolling-code-text">{{item.rollingCode}}</text>
+      </view>
+      <view class="device-info">
+        <view class="device-name">设备 {{item.rollingCode}}</view>
+        <view class="device-status-line">
+          <view class="device-online-status {{item.isOnline ? 'online' : 'offline'}}">
+            <text class="status-dot">●</text>
+            <text>{{item.isOnline ? '在线' : '离线'}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="device-arrow">></view>
+    </view>
+    
+    <view class="tips-container">
+      <view class="tips-title">使用说明:</view>
+      <view class="tips-text">• 点击设备进入控制界面</view>
+      <view class="tips-text">• 长按设备可以删除设备</view>
+      <view class="tips-text">• 点击"检查状态"可手动刷新设备状态</view>
+      <view class="tips-text">• 绿色●表示设备在线，灰色●表示设备离线</view>
+      <view class="tips-text">• 设备超过5分钟无响应才会标记为离线</view>
+      <view class="tips-text">• 点击"扫描设备"添加新设备</view>
+    </view>
+  </view>
+  
+  <view class="empty-state" wx:else>
+    <image class="empty-img" src="/images/empty.png" mode="aspectFit"></image>
+    <view class="empty-text">暂无设备</view>
+    <view class="empty-desc">点击"扫描设备"按钮来添加您的智能设备</view>
+    
+    <view class="tips-container">
+      <view class="tips-title">如何添加设备:</view>
+      <view class="tips-text">1. 确保设备已开启并处于可发现状态</view>
+      <view class="tips-text">2. 点击"扫描设备"按钮开始搜索</view>
+      <view class="tips-text">3. 在扫描列表中选择您的设备</view>
+    </view>
+  </view>
+</view>

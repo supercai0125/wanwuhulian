@@ -1,0 +1,81 @@
+<navigation-bar title="循环定时设置" back="{{true}}" color="white" background="#1E90FF"></navigation-bar>
+<view class="page-container">
+  <!-- 时长设置区域 -->
+  <view class="time-settings">
+    <view class="setting-title">
+      <view class="title-icon">🔄</view>
+      <text>循环时长设置</text>
+    </view>
+    
+    <!-- 开启时长 -->
+    <picker mode="multiSelector" bindchange="onStartTimeChange" 
+            range="{{timePickerRange}}" value="{{startTimeValue}}">
+      <view class="setting-item">
+        <view class="setting-label">
+          <text class="label-text">开启时长</text>
+          <text class="label-desc">设备保持开启的时长</text>
+        </view>
+        <view class="picker-display">
+          <text class="time-text">{{startDuration}}</text>
+          <text class="arrow">></text>
+        </view>
+      </view>
+    </picker>
+
+    <!-- 关闭时长 -->
+    <picker mode="multiSelector" bindchange="onEndTimeChange" 
+            range="{{timePickerRange}}" value="{{endTimeValue}}">
+      <view class="setting-item">
+        <view class="setting-label">
+          <text class="label-text">关闭时长</text>
+          <text class="label-desc">设备保持关闭的时长</text>
+        </view>
+        <view class="picker-display">
+          <text class="time-text">{{endDuration}}</text>
+          <text class="arrow">></text>
+        </view>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 底部保存按钮 -->
+  <view class="bottom-action">
+    <button 
+      class="save-btn" 
+      bindtap="saveLoopTimer"
+      disabled="{{isLoading}}"
+      loading="{{isLoading}}"
+    >
+      <view class="btn-content">
+        <text class="btn-icon">💾</text>
+        <text class="btn-text">保存设置</text>
+      </view>
+    </button>
+  </view>
+
+  <!-- 使用说明 -->
+  <view class="tips">
+    <view class="tip-header">
+      <text class="tip-icon">💡</text>
+      <text class="tip-title">使用说明</text>
+    </view>
+    <view class="tip-list">
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">循环定时会按照设定的时长循环开关设备</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">开启时长：设备保持开启状态的时间</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">关闭时长：设备保持关闭状态的时间</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">设置后需要切换到循环定时模式才会生效</text>
+      </view>
+    </view>
+  </view>
+</view> 

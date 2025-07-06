@@ -1,0 +1,145 @@
+<navigation-bar title="添加定时" back="{{true}}" color="white" background="#1E90FF"></navigation-bar>
+<view class="page-container">
+  <!-- 状态提示区域 -->
+  <view class="status-tip {{statusTip ? 'show' : ''}}" wx:if="{{statusTip}}">
+    {{statusTip}}
+  </view>
+
+  <!-- 时间设置区域 -->
+  <view class="time-settings">
+    <view class="setting-title">
+      <view class="title-icon">⏰</view>
+      <text>时间设置</text>
+    </view>
+    
+    <!-- 开启时间 -->
+    <picker mode="multiSelector" bindchange="onStartTimeChange" 
+            range="{{timePickerRange}}" value="{{startTimeValue}}">
+      <view class="time-item">
+        <view class="time-label">开启时间</view>
+        <view class="time-value">
+          <text class="time-text">{{formData.startTime}}</text>
+          <text class="arrow">></text>
+        </view>
+      </view>
+    </picker>
+
+    <!-- 关闭时间 -->
+    <picker mode="multiSelector" bindchange="onEndTimeChange" 
+            range="{{timePickerRange}}" value="{{endTimeValue}}">
+      <view class="time-item">
+        <view class="time-label">关闭时间</view>
+        <view class="time-value">
+          <text class="time-text">{{formData.endTime}}</text>
+          <text class="arrow">></text>
+        </view>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 重复时间设置 -->
+  <view class="repeat-settings">
+    <view class="setting-title">
+      <view class="title-icon">🔄</view>
+      <text>重复设置</text>
+    </view>
+    
+    <!-- 快捷选项 -->
+    <view class="repeat-quick-options">
+      <view class="quick-option {{repeatMode === 'daily' ? 'active' : ''}}" 
+            bindtap="setRepeatMode" data-mode="daily">
+        <text>每天</text>
+      </view>
+      <view class="quick-option {{repeatMode === 'workdays' ? 'active' : ''}}" 
+            bindtap="setRepeatMode" data-mode="workdays">
+        <text>工作日</text>
+      </view>
+      <view class="quick-option {{repeatMode === 'weekends' ? 'active' : ''}}" 
+            bindtap="setRepeatMode" data-mode="weekends">
+        <text>周末</text>
+      </view>
+      <view class="quick-option {{repeatMode === 'custom' ? 'active' : ''}}" 
+            bindtap="setRepeatMode" data-mode="custom">
+        <text>自定义</text>
+      </view>
+    </view>
+
+    <!-- 自定义星期选择（仅在自定义模式下显示） -->
+    <view class="repeat-days" wx:if="{{repeatMode === 'custom'}}">
+      <view class="day-item {{formData.repeatDays.includes(0) ? 'active' : ''}}" 
+            bindtap="toggleDay" data-day="0">
+        <text>日</text>
+      </view>
+      <view class="day-item {{formData.repeatDays.includes(1) ? 'active' : ''}}" 
+            bindtap="toggleDay" data-day="1">
+        <text>一</text>
+      </view>
+      <view class="day-item {{formData.repeatDays.includes(2) ? 'active' : ''}}" 
+            bindtap="toggleDay" data-day="2">
+        <text>二</text>
+      </view>
+      <view class="day-item {{formData.repeatDays.includes(3) ? 'active' : ''}}" 
+            bindtap="toggleDay" data-day="3">
+        <text>三</text>
+      </view>
+      <view class="day-item {{formData.repeatDays.includes(4) ? 'active' : ''}}" 
+            bindtap="toggleDay" data-day="4">
+        <text>四</text>
+      </view>
+      <view class="day-item {{formData.repeatDays.includes(5) ? 'active' : ''}}" 
+            bindtap="toggleDay" data-day="5">
+        <text>五</text>
+      </view>
+      <view class="day-item {{formData.repeatDays.includes(6) ? 'active' : ''}}" 
+            bindtap="toggleDay" data-day="6">
+        <text>六</text>
+      </view>
+    </view>
+
+    <!-- 重复模式说明 -->
+    <view class="repeat-description" wx:if="{{repeatModeDescription}}">
+      <text>{{repeatModeDescription}}</text>
+    </view>
+  </view>
+
+  <!-- 底部保存按钮 -->
+  <view class="bottom-action">
+    <button 
+      class="save-btn" 
+      bindtap="saveTimer"
+      disabled="{{isLoading}}"
+      loading="{{isLoading}}"
+    >
+      <view class="btn-content">
+        <text class="btn-icon">💾</text>
+        <text class="btn-text">保存设置</text>
+      </view>
+    </button>
+  </view>
+
+  <!-- 使用说明 -->
+  <view class="tips">
+    <view class="tip-header">
+      <text class="tip-icon">💡</text>
+      <text class="tip-title">使用说明</text>
+    </view>
+    <view class="tip-list">
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">设置设备的开启和关闭时间</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">分组定时支持重复执行模式</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">重复模式支持每天、工作日、周末或自定义</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">保存后定时任务会自动生效</text>
+      </view>
+    </view>
+  </view>
+</view> 

@@ -1,0 +1,111 @@
+<navigation-bar title="时控开关" back="{{true}}" color="white" background="#1E90FF"></navigation-bar>
+<view class="page-container">
+  <!-- 状态提示区域 -->
+  <view class="status-tip {{statusTip ? 'show' : ''}}" wx:if="{{statusTip}}">
+    {{statusTip}}
+  </view>
+  
+  <!-- 蓝牙状态指示器 -->
+  <view class="bluetooth-status" wx:if="{{bluetoothSending}}">
+    <view class="bluetooth-icon">📡</view>
+    <text class="bluetooth-text">正在发送蓝牙命令...</text>
+  </view>
+  
+  <!-- 开关状态显示 -->
+  <view class="switch-status">
+    <view class="switch-icon-container">
+      <view class="switch-icon {{device.power ? 'active' : ''}}">
+        <view class="power-line"></view>
+        <view class="power-circle"></view>
+      </view>
+    </view>
+    <view class="status-info">
+      <text class="status-text">开关{{device.power ? '开启' : '关闭'}}</text>
+      <view class="device-status">
+        <view class="online-indicator {{device.isOnline ? 'online' : 'offline'}}"></view>
+        <text class="online-text">{{device.isOnline ? '在线' : '离线'}}</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 设备离线警告 -->
+  <view class="offline-warning" wx:if="{{deviceOfflineConfirmed}}">
+    <view class="warning-icon">⚠️</view>
+    <text class="warning-text">设备可能已离线，请检查设备状态</text>
+  </view>
+  
+  <!-- 主控制区域 -->
+  <view class="main-controls">
+    <view class="control-row">
+      <view class="control-item {{!device.power && device.mode === 'off' ? 'active' : ''}}" bindtap="setMode" data-mode="off">
+        <view class="control-icon power-off"></view>
+        <text class="control-text">常关</text>
+      </view>
+      <view class="control-item {{device.power && device.mode === 'on' ? 'active' : ''}}" bindtap="setMode" data-mode="on">
+        <view class="control-icon power-on"></view>
+        <text class="control-text">常开</text>
+      </view>
+      <view class="control-item {{device.mode === 'group' ? 'active' : ''}}" bindtap="setMode" data-mode="group">
+        <view class="control-icon timer"></view>
+        <text class="control-text">分组定时</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 定时功能区域 -->
+  <view class="timer-functions">
+    <view class="timer-row">
+      <view class="timer-item {{device.mode === 'countdown' ? 'active' : ''}}" bindtap="setMode" data-mode="countdown">
+        <view class="timer-icon countdown"></view>
+        <text class="timer-text">倒计时</text>
+      </view>
+      <view class="timer-item {{device.mode === 'loop' ? 'active' : ''}}" bindtap="setMode" data-mode="loop">
+        <view class="timer-icon loop"></view>
+        <text class="timer-text">循环定时</text>
+      </view>
+      <view class="timer-item {{device.mode === 'sunset' ? 'active' : ''}}" bindtap="setMode" data-mode="sunset">
+        <view class="timer-icon sunset"></view>
+        <text class="timer-text">日落定时</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 功能列表 -->
+  <view class="function-list">
+    <view class="function-item" bindtap="addGroupTimer">
+      <view class="function-icon group-add"></view>
+      <text class="function-text">添加分组定时</text>
+      <view class="function-arrow">></view>
+    </view>
+    
+    <view class="function-item" bindtap="showCountdownSetting">
+      <view class="function-icon countdown-setting"></view>
+      <text class="function-text">设置倒计时</text>
+      <view class="function-arrow">></view>
+    </view>
+    
+    <view class="function-item" bindtap="setLoopTimer">
+      <view class="function-icon loop-setting"></view>
+      <text class="function-text">设置循环定时</text>
+      <view class="function-arrow">></view>
+    </view>
+    
+    <view class="function-item" bindtap="setSunsetTimer">
+      <view class="function-icon sunset-setting"></view>
+      <text class="function-text">设置日落定时</text>
+      <view class="function-arrow">></view>
+    </view>
+    
+
+    <view class="function-item">
+      <view class="password-content" bindtap="setPassword">
+        <view class="function-icon password"></view>
+        <view class="password-text-area">
+          <text class="function-text">设置密码</text>
+          <text class="function-desc">开启后，需要输入密码才能使用</text>
+        </view>
+      </view>
+      <switch checked="{{device.passwordEnabled}}" bindchange="togglePassword" color="#1E90FF"/>
+    </view>
+  </view>
+</view> 

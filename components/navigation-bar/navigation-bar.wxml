@@ -1,0 +1,14 @@
+<view class="nav-bar" style="background-color: {{background}}; height: {{statusBarHeight + 44}}px;">
+  <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+  <view class="nav-content">
+    <view class="nav-left" wx:if="{{back}}">
+      <view class="back-btn" bindtap="goBack">
+        <view class="back-arrow" style="border-color: {{color}};"></view>
+      </view>
+    </view>
+    <view class="nav-title" style="color: {{color}};">{{title}}</view>
+    <view class="nav-right"></view>
+  </view>
+</view>
+
+<view class="nav-bar-placeholder" style="height: {{statusBarHeight + 44}}px;"></view>

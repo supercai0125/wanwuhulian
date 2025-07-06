@@ -1,0 +1,596 @@
+.page-container {
+  padding: 0;
+  background-color: #f7f7f7;
+  min-height: 100vh;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* 状态提示 */
+.status-tip {
+  position: fixed;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 12rpx 24rpx;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+  opacity: 0;
+  z-index: 100;
+  text-align: center;
+}
+
+.status-tip.show {
+  opacity: 1;
+  animation: statusFade 2s forwards;
+}
+
+@keyframes statusFade {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* 蓝牙状态指示器 */
+.bluetooth-status {
+  position: fixed;
+  top: 25%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(30, 144, 255, 0.9);
+  color: white;
+  padding: 16rpx 32rpx;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  box-shadow: 0 4rpx 20rpx rgba(30, 144, 255, 0.3);
+  animation: bluetoothPulse 1.5s infinite;
+}
+
+.bluetooth-icon {
+  font-size: 28rpx;
+  animation: bluetoothRotate 2s infinite linear;
+}
+
+.bluetooth-text {
+  font-weight: 500;
+}
+
+@keyframes bluetoothPulse {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes bluetoothRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 开关状态显示 */
+.switch-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40rpx 0 60rpx;
+  background-color: #fff;
+}
+
+.switch-icon-container {
+  margin-bottom: 20rpx;
+}
+
+.switch-icon {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 30rpx;
+  background: linear-gradient(145deg, #f0f0f0, #cacaca);
+  box-shadow: 20rpx 20rpx 60rpx #bebebe, -20rpx -20rpx 60rpx #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.switch-icon.active {
+  background: linear-gradient(145deg, #1E90FF, #0066CC);
+  box-shadow: 20rpx 20rpx 60rpx rgba(30, 144, 255, 0.3), -20rpx -20rpx 60rpx rgba(30, 144, 255, 0.1);
+  animation: powerPulse 2s infinite;
+}
+
+@keyframes powerPulse {
+  0%, 100% {
+    box-shadow: 20rpx 20rpx 60rpx rgba(30, 144, 255, 0.3), -20rpx -20rpx 60rpx rgba(30, 144, 255, 0.1), 0 0 0 0 rgba(30, 144, 255, 0.7);
+  }
+  50% {
+    box-shadow: 20rpx 20rpx 60rpx rgba(30, 144, 255, 0.3), -20rpx -20rpx 60rpx rgba(30, 144, 255, 0.1), 0 0 0 20rpx rgba(30, 144, 255, 0);
+  }
+}
+
+.power-line {
+  width: 6rpx;
+  height: 60rpx;
+  background-color: #666;
+  border-radius: 3rpx;
+  position: absolute;
+  top: 50rpx;
+  transition: all 0.3s ease;
+}
+
+.power-circle {
+  width: 80rpx;
+  height: 80rpx;
+  border: 6rpx solid #666;
+  border-radius: 50%;
+  border-top: 6rpx solid transparent;
+  transition: all 0.3s ease;
+}
+
+.switch-icon.active .power-line,
+.switch-icon.active .power-circle {
+  border-color: white;
+  background-color: white;
+}
+
+.switch-icon.active .power-circle {
+  border-top-color: transparent;
+}
+
+/* 状态信息区域 */
+.status-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.status-text {
+  font-size: 32rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+/* 设备在线状态 */
+.device-status {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-top: 8rpx;
+}
+
+.online-indicator {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.online-indicator.online {
+  background-color: #4CAF50;
+  box-shadow: 0 0 0 4rpx rgba(76, 175, 80, 0.2);
+  animation: onlinePulse 2s infinite;
+}
+
+.online-indicator.offline {
+  background-color: #F44336;
+  box-shadow: 0 0 0 4rpx rgba(244, 67, 54, 0.2);
+}
+
+@keyframes onlinePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4rpx rgba(76, 175, 80, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 8rpx rgba(76, 175, 80, 0.1);
+  }
+}
+
+.online-text {
+  font-size: 24rpx;
+  color: #666;
+  font-weight: 400;
+}
+
+/* 设备离线警告 */
+.offline-warning {
+  margin: 20rpx;
+  padding: 20rpx 24rpx;
+  background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+  border: 2rpx solid #FF9800;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  animation: warningShake 0.5s ease-in-out;
+}
+
+@keyframes warningShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4rpx); }
+  75% { transform: translateX(4rpx); }
+}
+
+.warning-icon {
+  font-size: 32rpx;
+  animation: warningBlink 1.5s infinite;
+}
+
+@keyframes warningBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.warning-text {
+  font-size: 28rpx;
+  color: #E65100;
+  font-weight: 500;
+  flex: 1;
+}
+
+
+
+/* 主控制区域 */
+.main-controls {
+  background-color: #fff;
+  margin: 20rpx;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+.control-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.control-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30rpx 20rpx;
+  border-radius: 12rpx;
+  background-color: #f8f9fa;
+  border: 2rpx solid transparent;
+  transition: all 0.3s ease;
+}
+
+.control-item.active {
+  background-color: #1E90FF;
+  border-color: #1E90FF;
+  transform: translateY(-2rpx);
+  box-shadow: 0 8rpx 20rpx rgba(30, 144, 255, 0.3);
+}
+
+.control-icon {
+  width: 60rpx;
+  height: 60rpx;
+  margin-bottom: 16rpx;
+  position: relative;
+}
+
+.control-icon.power-off::before {
+  content: '';
+  position: absolute;
+  width: 50rpx;
+  height: 50rpx;
+  border: 4rpx solid #666;
+  border-radius: 50%;
+  top: 5rpx;
+  left: 5rpx;
+}
+
+.control-icon.power-off::after {
+  content: '';
+  position: absolute;
+  width: 4rpx;
+  height: 30rpx;
+  background-color: #666;
+  top: 15rpx;
+  left: 28rpx;
+  border-radius: 2rpx;
+}
+
+.control-item.active .control-icon.power-off::before,
+.control-item.active .control-icon.power-off::after {
+  border-color: white;
+  background-color: white;
+}
+
+.control-icon.power-on::before {
+  content: '';
+  position: absolute;
+  width: 50rpx;
+  height: 50rpx;
+  border: 4rpx solid #4CAF50;
+  border-radius: 50%;
+  top: 5rpx;
+  left: 5rpx;
+}
+
+.control-icon.power-on::after {
+  content: '';
+  position: absolute;
+  width: 4rpx;
+  height: 30rpx;
+  background-color: #4CAF50;
+  top: 15rpx;
+  left: 28rpx;
+  border-radius: 2rpx;
+}
+
+.control-item.active .control-icon.power-on::before,
+.control-item.active .control-icon.power-on::after {
+  border-color: white;
+  background-color: white;
+}
+
+.control-icon.timer::before {
+  content: '⏱';
+  font-size: 50rpx;
+  color: #FF9800;
+  position: absolute;
+  top: 5rpx;
+  left: 5rpx;
+}
+
+.control-item.active .control-icon.timer::before {
+  color: white;
+}
+
+.control-text {
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.control-item.active .control-text {
+  color: white;
+}
+
+/* 定时功能区域 */
+.timer-functions {
+  background-color: #fff;
+  margin: 20rpx;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+.timer-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.timer-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 25rpx 15rpx;
+  border-radius: 12rpx;
+  background-color: #f8f9fa;
+  border: 2rpx solid transparent;
+  transition: all 0.3s ease;
+}
+
+.timer-item:active {
+  transform: scale(0.95);
+  background-color: #e9ecef;
+}
+
+.timer-item.active {
+  background-color: #1E90FF;
+  border-color: #1E90FF;
+  transform: translateY(-2rpx);
+  box-shadow: 0 8rpx 20rpx rgba(30, 144, 255, 0.3);
+}
+
+.timer-icon {
+  width: 50rpx;
+  height: 50rpx;
+  margin-bottom: 12rpx;
+  position: relative;
+}
+
+.timer-icon.countdown::before {
+  content: '⏳';
+  font-size: 40rpx;
+  color: #FF6B6B;
+  position: absolute;
+  top: 0;
+  left: 5rpx;
+}
+
+.timer-item.active .timer-icon.countdown::before {
+  color: white;
+}
+
+.timer-icon.loop::before {
+  content: '🔄';
+  font-size: 40rpx;
+  color: #4ECDC4;
+  position: absolute;
+  top: 0;
+  left: 5rpx;
+}
+
+.timer-item.active .timer-icon.loop::before {
+  color: white;
+}
+
+.timer-icon.sunset::before {
+  content: '🌅';
+  font-size: 40rpx;
+  color: #FFB74D;
+  position: absolute;
+  top: 0;
+  left: 5rpx;
+}
+
+.timer-item.active .timer-icon.sunset::before {
+  color: white;
+}
+
+.timer-text {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.timer-item.active .timer-text {
+  color: white;
+}
+
+/* 功能列表 */
+.function-list {
+  background-color: #fff;
+  margin: 20rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+.function-item {
+  display: flex;
+  align-items: center;
+  padding: 32rpx 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  transition: background-color 0.2s ease;
+  position: relative;
+}
+
+.function-item:last-child {
+  border-bottom: none;
+}
+
+.function-item:active {
+  background-color: #f8f9fa;
+}
+
+.function-icon {
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 24rpx;
+  position: relative;
+}
+
+.function-icon.group-add::before {
+  content: '⏲';
+  font-size: 32rpx;
+  color: #9C27B0;
+  position: absolute;
+}
+
+.function-icon.sunset-setting::before {
+  content: '🌅';
+  font-size: 32rpx;
+  color: #FFB74D;
+  position: absolute;
+}
+
+.function-icon.countdown-setting::before {
+  content: '⏰';
+  font-size: 32rpx;
+  color: #E91E63;
+  position: absolute;
+}
+
+.function-icon.loop-setting::before {
+  content: '🔁';
+  font-size: 32rpx;
+  color: #00BCD4;
+  position: absolute;
+}
+
+
+
+.function-icon.password::before {
+  content: '🔒';
+  font-size: 32rpx;
+  color: #795548;
+  position: absolute;
+}
+
+.function-text {
+  flex: 1;
+  font-size: 30rpx;
+  color: #333;
+  font-weight: 400;
+}
+
+.function-desc {
+  font-size: 24rpx;
+  color: #999;
+  margin-right: 20rpx;
+}
+
+.function-arrow {
+  font-size: 28rpx;
+  color: #ccc;
+  font-weight: bold;
+}
+
+/* 密码设置区域样式 */
+.password-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.password-text-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.password-content:active {
+  opacity: 0.7;
+}
+
+/* 适配小屏幕 */
+@media screen and (max-width: 375px) {
+  .switch-icon {
+    width: 170rpx;
+    height: 170rpx;
+  }
+  
+  .control-item {
+    padding: 25rpx 15rpx;
+  }
+  
+  .control-text {
+    font-size: 24rpx;
+  }
+  
+  .timer-item {
+    padding: 20rpx 10rpx;
+  }
+  
+  .timer-text {
+    font-size: 22rpx;
+  }
+} 

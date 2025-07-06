@@ -1,0 +1,111 @@
+<navigation-bar title="倒计时" back="{{true}}" color="white" background="#1E90FF"></navigation-bar>
+<view class="page-container">
+  <!-- 状态提示区域 -->
+  <view class="status-tip {{statusTip ? 'show' : ''}}" wx:if="{{statusTip}}">
+    {{statusTip}}
+  </view>
+
+  <!-- 倒计时显示区域 -->
+  <view class="countdown-display" wx:if="{{isCountingDown}}">
+    <view class="countdown-time">{{displayTime}}</view>
+    <view class="countdown-status">倒计时进行中...</view>
+  </view>
+
+  <!-- 时间设置区域 -->
+  <view class="time-settings" wx:if="{{!isCountingDown}}">
+    <view class="setting-title">
+      <view class="title-icon">⏱️</view>
+      <text>倒计时设置</text>
+    </view>
+    <picker mode="multiSelector" bindchange="onTimeChange" 
+            range="{{timePickerRange}}" value="{{timeValue}}">
+      <view class="time-item">
+        <view class="time-label">倒计时</view>
+        <view class="time-value">
+          <text class="time-text">{{formattedTime}}</text>
+          <text class="arrow">></text>
+        </view>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 执行操作设置 -->
+  <view class="action-settings">
+    <view class="setting-title">
+      <view class="title-icon">⚡</view>
+      <text>执行操作</text>
+    </view>
+    <picker mode="selector" bindchange="onActionChange" 
+            range="{{actionOptions}}" value="{{actionIndex}}">
+      <view class="time-item">
+        <view class="time-label">执行操作</view>
+        <view class="time-value">
+          <text class="time-text">{{actionOptions[actionIndex]}}</text>
+          <text class="arrow">></text>
+        </view>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 底部操作按钮 -->
+  <view class="bottom-action">
+    <button 
+      class="action-btn start-btn" 
+      bindtap="startCountdown" 
+      wx:if="{{!isCountingDown && !returnTo}}"
+    >
+      <view class="btn-content">
+        <text class="btn-icon">▶️</text>
+        <text class="btn-text">开始倒计时</text>
+      </view>
+    </button>
+    <button 
+      class="action-btn save-btn" 
+      bindtap="saveCountdownSetting" 
+      wx:if="{{!isCountingDown && returnTo}}"
+      disabled="{{isLoading}}"
+      loading="{{isLoading}}"
+    >
+      <view class="btn-content">
+        <text class="btn-icon">💾</text>
+        <text class="btn-text">保存设置</text>
+      </view>
+    </button>
+    <button 
+      class="action-btn stop-btn" 
+      bindtap="stopCountdown" 
+      wx:if="{{isCountingDown}}"
+    >
+      <view class="btn-content">
+        <text class="btn-icon">⏹️</text>
+        <text class="btn-text">停止倒计时</text>
+      </view>
+    </button>
+  </view>
+
+  <!-- 使用说明 -->
+  <view class="tips" wx:if="{{!isCountingDown}}">
+    <view class="tip-header">
+      <text class="tip-icon">💡</text>
+      <text class="tip-title">使用说明</text>
+    </view>
+    <view class="tip-list">
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">设置倒计时时长，支持小时、分钟、秒</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">选择倒计时结束后的执行操作</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">可选择倒计时结束后开启设备或关闭设备</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">倒计时进行中可随时停止</text>
+      </view>
+    </view>
+  </view>
+</view> 

@@ -1,0 +1,126 @@
+<navigation-bar title="日落定时设置" back="{{true}}" color="white" background="#1E90FF"></navigation-bar>
+<view class="page-container">
+  <!-- 状态提示区域 -->
+  <view class="status-tip {{statusTip ? 'show' : ''}}" wx:if="{{statusTip}}">
+    {{statusTip}}
+  </view>
+
+  <!-- 位置信息区域 -->
+  <view class="location-settings">
+    <view class="setting-title">
+      <view class="title-icon">📍</view>
+      <text>位置信息</text>
+    </view>
+    <view class="location-item">
+      <view class="location-info">
+        <text class="location-label">当前位置</text>
+        <text class="location-text" wx:if="{{locationName}}">{{locationName}}</text>
+        <text class="location-text loading" wx:elif="{{locationLoading}}">正在获取位置...</text>
+        <text class="location-text error" wx:else>位置获取失败</text>
+      </view>
+      <view class="refresh-action">
+        <text class="refresh-link {{locationLoading ? 'loading' : ''}}" bindtap="refreshLocation">
+          {{locationLoading ? '获取中...' : '重新获取'}}
+        </text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 日落时间设置区域 -->
+  <view class="time-settings">
+    <view class="setting-title">
+      <view class="title-icon">🌅</view>
+      <text>日落时间</text>
+    </view>
+    
+    <!-- 模式切换 -->
+    <view class="mode-toggle">
+      <view class="toggle-option {{!isManualMode ? 'active' : ''}}" bindtap="setAutoMode">
+        <view class="option-icon">🤖</view>
+        <view class="option-content">
+          <text class="option-title">自动计算</text>
+          <text class="option-desc">基于位置自动计算</text>
+        </view>
+      </view>
+      <view class="toggle-option {{isManualMode ? 'active' : ''}}" bindtap="setManualMode">
+        <view class="option-icon">✋</view>
+        <view class="option-content">
+          <text class="option-title">手动设置</text>
+          <text class="option-desc">自定义开启时间</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 日落时间显示 -->
+    <view class="time-display">
+      <view class="time-info">
+        <text class="time-label">日落时间</text>
+        <view class="time-value-container">
+          <text class="time-value">{{displayTime}}</text>
+          <view class="time-badge {{isManualMode ? 'manual' : 'auto'}}">
+            <text class="badge-text">{{isManualMode ? '手动' : '自动'}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 手动设置时间选择器 -->
+    <picker 
+      mode="time" 
+      value="{{manualSunsetTime.substring(0, 5)}}" 
+      bindchange="onManualTimeChange"
+      wx:if="{{isManualMode}}"
+    >
+      <view class="time-picker">
+        <view class="picker-content">
+          <view class="picker-icon">⏰</view>
+          <text class="picker-label">修改时间</text>
+        </view>
+        <view class="picker-arrow">
+          <text class="arrow-icon">›</text>
+        </view>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 底部保存按钮 -->
+  <view class="bottom-action">
+    <button 
+      class="save-btn" 
+      bindtap="saveSunsetTimer"
+      disabled="{{isLoading}}"
+      loading="{{isLoading}}"
+    >
+      <view class="btn-content">
+        <text class="btn-icon">💾</text>
+        <text class="btn-text">保存设置</text>
+      </view>
+    </button>
+  </view>
+
+  <!-- 使用说明 -->
+  <view class="tips">
+    <view class="tip-header">
+      <text class="tip-icon">💡</text>
+      <text class="tip-title">使用说明</text>
+    </view>
+    <view class="tip-list">
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">自动模式会根据您的位置计算准确的日落时间</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">手动模式可以自定义开启时间</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">设置后需要切换到日落定时模式才会生效</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">日落定时会在每天的日落时间自动开启设备</text>
+      </view>
+    </view>
+  </view>
+</view> 
