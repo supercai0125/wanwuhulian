@@ -215,28 +215,42 @@ Page({
 
         // 准备倒计时命令数据
         const countdownData = {
-            action: action === '开启' ? 'on' : 'off', // 修改为正确的操作类型
+            power: action === '开启', // 修改为正确的字段名和布尔值
             hours: 0,
             minutes: 0,
             seconds: 0 // 倒计时结束后立即执行操作
         };
 
+        // 获取设备的滚动码
+        const discoveredDevices = wx.getStorageSync('discovered_devices') || [];
+        const device = discoveredDevices.find(d => d.id === this.data.deviceId);
+        const rollingCode = device?.rollingCode || '0000';
+
         // 发送BLE命令
         sendCountdownCommand(
             countdownData,
+            rollingCode,
             (result) => {
                 console.log('倒计时操作命令发送成功:', result);
                 wx.showToast({
                     title: `设备${action}成功`,
                     icon: 'success'
                 });
+
+                // 命令成功时更新设备状态为在线
+                this.updateDeviceOnlineStatus();
             },
             (error) => {
                 console.error('倒计时操作命令发送失败:', error);
                 wx.showToast({
-                    title: `设备${action}失败`,
+                    title: error || '设备可能离线，请检查设备状态',
                     icon: 'none'
                 });
+
+                // 如果是设备离线相关的错误，更新设备状态
+                if (!error || error.includes('离线') || error.includes('超时') || error.includes('设备可能离线')) {
+                    this.updateDeviceOfflineStatus();
+                }
             }
         );
     },
@@ -314,5 +328,51 @@ Page({
         setTimeout(() => {
             wx.navigateBack();
         }, 1500);
+    },
+
+    // 更新设备在线状态
+    updateDeviceOnlineStatus: function () {
+        try {
+            // 更新已发现设备列表中的状态
+            const discoveredDevices = wx.getStorageSync('discovered_devices') || [];
+            const updatedDevices = discoveredDevices.map(device => {
+                if (device.rollingCode === this.data.deviceId) {
+                    return {
+                        ...device,
+                        isOnline: true,
+                        lastSeen: Date.now()
+                    };
+                }
+                return device;
+            });
+
+            wx.setStorageSync('discovered_devices', updatedDevices);
+            console.log('📡 倒计时页面：设备状态已更新为在线');
+        } catch (error) {
+            console.error('更新设备在线状态失败:', error);
+        }
+    },
+
+    // 更新设备离线状态
+    updateDeviceOfflineStatus: function () {
+        try {
+            // 更新已发现设备列表中的状态
+            const discoveredDevices = wx.getStorageSync('discovered_devices') || [];
+            const updatedDevices = discoveredDevices.map(device => {
+                if (device.rollingCode === this.data.deviceId) {
+                    return {
+                        ...device,
+                        isOnline: false,
+                        lastSeen: Date.now()
+                    };
+                }
+                return device;
+            });
+
+            wx.setStorageSync('discovered_devices', updatedDevices);
+            console.log('📡 倒计时页面：设备状态已更新为离线');
+        } catch (error) {
+            console.error('更新设备离线状态失败:', error);
+        }
     }
 }) 

@@ -1,47 +1,27 @@
-import { sendBroadcastOnly, sendIOSBroadcastOnlyForDiscovery, sendAndroidBroadcastOnlyForDiscovery } from './core.js'
+// 开关相关的蓝牙命令生成
+// 移除对core.js的依赖，只提供命令生成功能
 
-// 专门为设备扫描页面提供的广播函数（会初始化新的蓝牙适配器）
-function sendBroadcastOnlyForDiscovery(command, successCallback, errorCallback) {
-    console.log('📡 设备扫描页面发送广播命令:', command);
-
-    // 设备扫描页面需要初始化新的peripheral适配器
-    wx.openBluetoothAdapter({
-        mode: 'peripheral',
-        success: (res) => {
-            console.log('📡 设备扫描广播适配器初始化成功:', res);
-
-            // 获取系统信息
-            wx.getSystemInfo({
-                success: (systemInfo) => {
-                    const platform = systemInfo.platform;
-                    const system = systemInfo.system;
-                    const isIos = platform === 'ios' || system.indexOf('iOS') >= 0;
-
-                    console.log('📡 设备扫描广播平台:', platform, system, 'iOS:', isIos);
-
-                    if (isIos) {
-                        sendIOSBroadcastOnlyForDiscovery(command, successCallback, errorCallback);
-                    } else {
-                        sendAndroidBroadcastOnlyForDiscovery(command, successCallback, errorCallback);
-                    }
-                },
-                fail: (error) => {
-                    console.error('获取系统信息失败:', error);
-                    errorCallback && errorCallback('获取系统信息失败');
-                }
-            });
-        },
-        fail: (error) => {
-            console.error('📡 设备扫描广播适配器初始化失败:', error);
-            errorCallback && errorCallback('蓝牙初始化失败');
-        }
-    });
-}
+import unifiedBluetoothManager from './unified-manager.js'
 
 // 生成开关命令
-const generateSwitchCommand = (power) => {
-    // 根据开关状态选择命令
-    return power ? '11223301026677889900112233' : '11223301016677889900112233';
+const generateSwitchCommand = (power, rollingCode) => {
+    // 根据协议表格，开关命令格式：
+    // 字节0-1: 滚动码 (2字节，4个十六进制字符)
+    // 字节2: 第三字节 (00 - 固定值)
+    // 字节3: 设备类型 (01 - 固定值)
+    // 字节4: 功能码 (01常关/02常开)
+    // 字节5-12: 从字节5开始都填充0
+
+    // 如果没有提供滚动码，使用默认值0000
+    const deviceRollingCode = rollingCode || '0000';
+
+    // 功能码：常开(02)，常关(01)
+    const functionCode = power ? '02' : '01';
+
+    // 生成命令：滚动码 + 00 + 设备类型01 + 功能码 + 从字节5开始填充0
+    const command = `${deviceRollingCode}0001${functionCode}0000000000000000`;
+
+    return command.toUpperCase();
 }
 
 // 生成匹配命令（用于小程序设备发现）
@@ -54,56 +34,84 @@ const generateMatchCommand = () => {
     return '00000001080000000000000000';
 }
 
-// 发送开关命令（修改为只发送广播，避免蓝牙适配器冲突）
+// 发送开关命令
 export function sendSwitchCommand(power, successCallback, errorCallback) {
-    console.log('开始发送开关命令:', power ? '开启' : '关闭');
-
     try {
-        // 生成开关命令
-        const command = generateSwitchCommand(power);
-        console.log('生成的开关命令:', command);
+        // 获取当前设备的滚动码
+        const rollingCode = unifiedBluetoothManager.deviceRollingCode;
 
-        // 使用只发送广播的方式，避免与设备扫描页面的蓝牙适配器冲突
-        sendBroadcastOnly(command, successCallback, errorCallback);
+        // 生成开关命令
+        const command = generateSwitchCommand(power, rollingCode);
+
+        // 使用统一管理器发送命令
+        // 如果还没有设备滚动码，需要先发送匹配命令
+        if (!rollingCode) {
+            unifiedBluetoothManager.resetDeviceFilter();
+
+            // 先发送匹配命令，等待设备回复
+            setTimeout(() => {
+                unifiedBluetoothManager.sendCommand(command, {
+                    expectReply: true,
+                    timeout: 8000,
+                    successCallback: successCallback,
+                    errorCallback: errorCallback
+                });
+            }, 1500); // 等待1.5秒让设备回复匹配命令
+        } else {
+            // 直接发送开关命令
+            unifiedBluetoothManager.sendCommand(command, {
+                expectReply: true,
+                timeout: 8000,
+                successCallback: successCallback,
+                errorCallback: errorCallback
+            });
+        }
 
     } catch (error) {
-        console.error('发送开关命令失败:', error);
         errorCallback && errorCallback(error);
     }
 }
 
 // 只发送广播命令，不监听回复（用于设备扫描页面）
 export function sendSwitchBroadcastOnly(power, successCallback, errorCallback) {
-    console.log('📡 发送扫描广播命令:', power ? '开启' : '关闭');
-
     try {
-        // 生成开关命令
-        const command = generateSwitchCommand(power);
-        console.log('📡 扫描广播命令:', command);
+        // 获取当前设备的滚动码
+        const rollingCode = unifiedBluetoothManager.deviceRollingCode;
 
-        // 只发送广播，不监听回复
-        sendBroadcastOnly(command, successCallback, errorCallback);
+        // 生成开关命令
+        const command = generateSwitchCommand(power, rollingCode);
+
+        // 使用统一管理器发送命令，期望回复以便检测设备离线状态
+        unifiedBluetoothManager.sendCommand(command, {
+            expectReply: true,
+            timeout: 3000, // 增加超时时间以便检测设备离线
+            successCallback: successCallback,
+            errorCallback: errorCallback
+        });
 
     } catch (error) {
-        console.error('发送扫描广播命令失败:', error);
         errorCallback && errorCallback(error);
     }
 }
 
 // 发送匹配命令用于设备发现（只发送广播）
 export function sendMatchBroadcastOnly(successCallback, errorCallback) {
-    console.log('📡 发送设备匹配广播命令');
-
     try {
         // 生成匹配命令
         const command = generateMatchCommand();
-        console.log('📡 匹配广播命令:', command);
 
-        // 使用专门的设备扫描广播函数，会初始化新的蓝牙适配器
-        sendBroadcastOnlyForDiscovery(command, successCallback, errorCallback);
+        // 使用统一管理器发送仅广播命令
+        // 重置设备过滤条件为0000（用于接收设备回复）
+        unifiedBluetoothManager.resetDeviceFilter();
+
+        unifiedBluetoothManager.sendCommand(command, {
+            expectReply: true,
+            timeout: 4000, // 仅广播，短超时
+            successCallback: successCallback,
+            errorCallback: errorCallback
+        });
 
     } catch (error) {
-        console.error('发送匹配广播命令失败:', error);
         errorCallback && errorCallback(error);
     }
 }

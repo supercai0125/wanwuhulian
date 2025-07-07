@@ -1,4 +1,4 @@
-const { sendSunsetTimerCommand } = require('../../utils/ble/sunsetTimer.js')
+import { sendSunsetTimerCommand } from '../../utils/ble/sunsetTimer.js'
 
 Page({
     data: {

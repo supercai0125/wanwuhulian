@@ -17,24 +17,7 @@
     "enablePullDownRefresh": false
   },
   "style": "v2",
-  "renderer": "skyline",
-  "rendererOptions": {
-    "skyline": {
-      "defaultDisplayBlock": true,
-      "defaultContentBox": true,
-      "tagNameStyleIsolation": "legacy",
-      "disableABTest": true,
-      "sdkVersionBegin": "3.0.0",
-      "sdkVersionEnd": "15.255.255"
-    }
-  },
-  "usingComponents": {
-    "navigation-bar": "/components/navigation-bar/navigation-bar"
-  },
   "permission": {
-    "scope.bluetooth": {
-      "desc": "需要蓝牙权限来控制智能设备"
-    },
     "scope.userLocation": {
       "desc": "需要获取您的位置信息来计算日落时间"
     }

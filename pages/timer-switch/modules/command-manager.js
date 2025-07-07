@@ -1,482 +1,289 @@
-// 命令管理模块
-import {
-    sendCountdownCommand, sendLoopTimerCommand, sendGroupTimerCommand, sendSunsetTimerCommand, sendTimeSyncCommand,
-    generateCountdownCommand, generateLoopTimerCommand, generateGroupTimerCommand, generateSunsetTimerCommand, generateTimeSyncCommand
-} from '../../../utils/BLEUtil'
-import { checkControlPermission, checkBatchOperationPermission } from '../../../utils/passwordUtil'
-import { BLUETOOTH_CONFIG, UI_CONFIG } from '../../../utils/config'
+// 命令管理器 - 处理各种蓝牙命令的发送
+// 基于统一蓝牙管理器，提供高级命令处理功能
+
+import { verifyControlPassword } from '../../../utils/passwordUtil.js'
+import { sendCountdownCommand } from '../../../utils/ble/countdown.js'
+import { sendLoopTimerCommand } from '../../../utils/ble/loopTimer.js'
+import { sendGroupTimerCommand } from '../../../utils/ble/groupTimer.js'
+import { sendSunsetTimerCommand } from '../../../utils/ble/sunsetTimer.js'
+import { sendTimeSyncCommand } from '../../../utils/ble/timeSync.js'
+import { sendSwitchCommand, sendSwitchBroadcastOnly, sendMatchBroadcastOnly } from '../../../utils/ble/switch.js'
+import unifiedBluetoothManager from '../../../utils/ble/unified-manager.js'
 
 class CommandManager {
     constructor(page, bluetoothManager) {
         this.page = page;
         this.bluetoothManager = bluetoothManager;
+        this.passwordRequired = false; // 是否需要密码验证
     }
 
-    // 发送蓝牙广播命令
-    sendBluetoothCommand(mode, power) {
-        console.log('发送蓝牙命令 - 模式:', mode, '电源:', power);
+    // 获取设备滚动码
+    getDeviceRollingCode() {
+        return this.page.data.deviceId || '0000';
+    }
 
-        this.page.setData({
-            bluetoothSending: true
+    // 发送蓝牙命令
+    sendBluetoothCommand(mode, power, data = {}) {
+        console.log('📡 CommandManager.sendBluetoothCommand 调用:', {
+            mode: mode,
+            power: power,
+            data: data,
+            modeType: typeof mode,
+            powerType: typeof power
         });
 
-        // 根据模式选择不同的命令发送方式
-        if (mode === 'countdown') {
-            return this.handleCountdownMode();
-        }
-
-        if (mode === 'loop') {
-            return this.handleLoopMode();
-        }
-
-        if (mode === 'group') {
-            return this.handleGroupMode();
-        }
-
-        if (mode === 'sunset') {
-            return this.handleSunsetMode();
-        }
-
-        // 常开和常关模式
-        if (mode === 'off' || mode === 'on') {
-            return this.handleSwitchMode(mode, power);
-        }
-
-        this.page.setData({
-            bluetoothSending: false
+        return new Promise((resolve, reject) => {
+            switch (mode) {
+                case 'switch':
+                    console.log('📡 处理 switch 命令');
+                    this.handleSwitchCommand(power, resolve, reject);
+                    break;
+                case 'off':
+                case 'on':
+                    // 常开/常关模式，映射到开关命令
+                    console.log('📡 处理 off/on 命令，映射到开关命令');
+                    this.handleSwitchCommand(power, resolve, reject);
+                    break;
+                case 'countdown':
+                    console.log('📡 处理 countdown 命令');
+                    this.handleCountdownCommand(data, resolve, reject);
+                    break;
+                case 'loop':
+                    console.log('📡 处理 loop 命令');
+                    this.handleLoopTimerCommand(data, resolve, reject);
+                    break;
+                case 'group':
+                    console.log('📡 处理 group 命令');
+                    this.handleGroupTimerCommand(data, resolve, reject);
+                    break;
+                case 'sunset':
+                    console.log('📡 处理 sunset 命令');
+                    this.handleSunsetTimerCommand(data, resolve, reject);
+                    break;
+                case 'timeSync':
+                    console.log('📡 处理 timeSync 命令');
+                    this.handleTimeSyncCommand(data, resolve, reject);
+                    break;
+                default:
+                    console.error('📡 未知的命令模式:', mode);
+                    reject(new Error('未知的命令模式: ' + mode));
+            }
         });
     }
 
-    // 处理倒计时模式
-    handleCountdownMode() {
-        const countdownTime = this.page.data.device.timers.countdown;
-        console.log('🔍 检查倒计时设置:', {
-            countdownTime: countdownTime,
-            type: typeof countdownTime,
-            totalSeconds: countdownTime?.totalSeconds,
-            isObject: typeof countdownTime === 'object',
-            hasValidTime: countdownTime && countdownTime.totalSeconds > 0
+    // 处理开关命令
+    handleSwitchCommand(power, resolve, reject) {
+        console.log('📡 handleSwitchCommand 调用:', {
+            power: power
         });
 
-        if (!countdownTime || typeof countdownTime !== 'object' || !countdownTime.totalSeconds || countdownTime.totalSeconds <= 0) {
-            console.log('❌ 倒计时检查失败，显示未设置提示');
-            this.page.setData({
-                bluetoothSending: false
-            });
-            wx.showModal({
-                title: '倒计时未设置',
-                content: '请先设置倒计时时间',
-                showCancel: false
-            });
+        // 对于常开/常关操作，使用快速广播模式，不等待回复
+        sendSwitchBroadcastOnly(power, (result) => {
+            console.log('📡 开关命令发送成功:', result);
+            resolve(result);
+        }, (error) => {
+            console.error('📡 开关命令发送失败:', error);
+            reject(error);
+        });
+    }
+
+    // 处理倒计时命令
+    handleCountdownCommand(data, resolve, reject) {
+        if (!data.action || (data.hours === undefined && data.minutes === undefined && data.seconds === undefined)) {
+            reject(new Error('倒计时数据不完整'));
             return;
         }
 
-        const action = countdownTime.action || '开启';
-        const bleAction = action === '开启' ? 'start' : 'stop';
+        const { action, hours = 0, minutes = 0, seconds = 0, endAction = '关闭' } = data;
 
-        console.log('倒计时模式 - 执行操作:', action, '-> BLE动作:', bleAction);
-
-        // 准备倒计时数据
         const countdownData = {
-            action: bleAction,
-            hours: countdownTime.hours || 0,
-            minutes: countdownTime.minutes || 0,
-            seconds: countdownTime.seconds || 0,
-            totalSeconds: countdownTime.totalSeconds || 0
+            // power字段表示倒计时结束后执行的操作：true=开启，false=关闭
+            power: endAction === '开启',
+            hours: parseInt(hours) || 0,
+            minutes: parseInt(minutes) || 0,
+            seconds: parseInt(seconds) || 0
         };
 
+        if (this.passwordRequired) {
+            verifyControlPassword('倒计时设置', () => {
+                this.sendCountdownCommandInternal(countdownData, resolve, reject);
+            }, reject);
+        } else {
+            this.sendCountdownCommandInternal(countdownData, resolve, reject);
+        }
+    }
+
+    // 内部发送倒计时命令
+    sendCountdownCommandInternal(countdownData, resolve, reject) {
         try {
-            // 生成倒计时命令
-            const command = generateCountdownCommand(countdownData);
-            console.log('🔧 生成的倒计时命令:', command);
-
-            // 使用蓝牙管理器发送命令，支持回复监听
-            this.bluetoothManager.addCommandToQueue(command,
-                (replyData) => {
-                    console.log('✅ 倒计时命令执行成功，收到设备回复:', replyData);
-                    this.page.setData({
-                        bluetoothSending: false,
-                        'device.mode': 'countdown'
-                    });
-                    this.page.showStatusTip(`倒计时${action}执行成功`, 1500);
-
-                    // 重置离线检测状态
-                    this.bluetoothManager.resetOfflineDetection();
-                },
-                (error) => {
-                    console.error('❌ 倒计时命令执行失败:', error);
-                    this.page.setData({
-                        bluetoothSending: false
-                    });
-
-                    if (error.includes('离线')) {
-                        this.page.showStatusTip(`倒计时${action}失败：设备可能离线`, 3000);
-                    } else {
-                        this.page.showStatusTip(`倒计时${action}发送失败`, 2000);
-                    }
-                },
-                true // 期待设备回复
-            );
+            const rollingCode = this.getDeviceRollingCode();
+            sendCountdownCommand(countdownData, rollingCode, (replyData) => {
+                resolve(replyData);
+            }, (error) => {
+                reject(error);
+            });
         } catch (error) {
-            console.error('生成倒计时命令失败:', error);
-            this.page.setData({
-                bluetoothSending: false
-            });
-            this.page.showStatusTip('生成倒计时命令失败', 2000);
+            reject(error);
         }
     }
 
-    // 处理循环定时模式
-    handleLoopMode() {
-        const loopTimerData = wx.getStorageSync('loopTimerData');
-        console.log('读取到的循环定时数据:', loopTimerData);
-
-        if (!loopTimerData || (!loopTimerData.startDuration && !loopTimerData.endDuration)) {
-            console.log('循环定时数据无效:', {
-                hasData: !!loopTimerData,
-                startDuration: loopTimerData?.startDuration,
-                endDuration: loopTimerData?.endDuration
-            });
-            this.page.setData({
-                bluetoothSending: false
-            });
-            wx.showModal({
-                title: '循环定时未设置',
-                content: '请先设置循环定时时长',
-                showCancel: false
-            });
+    // 处理循环定时命令
+    handleLoopTimerCommand(data, resolve, reject) {
+        if (!data.startTime || !data.endTime) {
+            reject(new Error('循环定时数据不完整'));
             return;
         }
 
-        console.log('准备发送循环定时命令:', loopTimerData);
-        sendLoopTimerCommand(loopTimerData,
-            () => {
-                console.log('循环定时命令发送成功');
-                this.page.setData({
-                    bluetoothSending: false
-                });
-                this.page.showStatusTip('循环定时命令发送成功');
-            },
-            (error) => {
-                console.error('循环定时命令发送失败:', error);
-                this.page.setData({
-                    bluetoothSending: false
-                });
-                wx.showModal({
-                    title: '发送失败',
-                    content: '循环定时命令发送失败，请检查蓝牙权限或重试',
-                    showCancel: false
-                });
-            }
-        );
+        const { startTime, endTime, sequenceNumber = 0 } = data;
+
+        const loopData = {
+            startTime: startTime,
+            endTime: endTime,
+            sequenceNumber: parseInt(sequenceNumber) || 0 // 功能执行序号
+        };
+
+        if (this.passwordRequired) {
+            verifyControlPassword('循环定时设置', () => {
+                this.sendLoopTimerCommandInternal(loopData, resolve, reject);
+            }, reject);
+        } else {
+            this.sendLoopTimerCommandInternal(loopData, resolve, reject);
+        }
     }
 
-    // 处理分组定时模式
-    handleGroupMode() {
-        const timerList = wx.getStorageSync(`timers_${this.page.data.deviceId}`) || [];
-        if (timerList.length === 0) {
-            this.page.setData({
-                bluetoothSending: false
+    // 内部发送循环定时命令
+    sendLoopTimerCommandInternal(loopData, resolve, reject) {
+        try {
+            const rollingCode = this.getDeviceRollingCode();
+            sendLoopTimerCommand(loopData, rollingCode, (replyData) => {
+                resolve(replyData);
+            }, (error) => {
+                reject(error);
             });
-            wx.showModal({
-                title: '分组定时未设置',
-                content: '请先添加分组定时',
-                showCancel: false
-            });
-            return;
+        } catch (error) {
+            reject(error);
         }
-
-        if (timerList.length > 10) {
-            this.page.setData({
-                bluetoothSending: false
-            });
-            wx.showModal({
-                title: '定时数量超限',
-                content: '设备最多支持10个分组定时，当前有' + timerList.length + '个定时',
-                showCancel: false
-            });
-            return;
-        }
-
-        checkBatchOperationPermission(this.page.data.deviceId, '发送所有分组定时')
-            .then(() => {
-                this.sendAllGroupTimers(timerList);
-            })
-            .catch((error) => {
-                console.log('发送分组定时被取消:', error);
-                this.page.setData({
-                    bluetoothSending: false
-                });
-            });
     }
 
-    // 处理日落定时模式
-    handleSunsetMode() {
-        const sunsetTimerData = wx.getStorageSync('sunsetTimerData');
-        if (!sunsetTimerData || !sunsetTimerData.finalSunsetTime) {
-            this.page.setData({
-                bluetoothSending: false
-            });
-            wx.showModal({
-                title: '日落定时未设置',
-                content: '请先设置日落定时',
-                showCancel: false
-            });
+    // 处理分组定时命令
+    handleGroupTimerCommand(data, resolve, reject) {
+        // 检查定时器数据格式
+        if (!data.startTime || !data.endTime || !data.repeatDays) {
+            reject(new Error('分组定时数据不完整'));
             return;
         }
+
+        // 转换为分组定时命令格式
+        const groupData = {
+            id: data.id || 'timer_' + Date.now(),
+            name: data.name || '定时任务',
+            startTime: data.startTime,
+            endTime: data.endTime,
+            repeatDays: data.repeatDays,
+            enabled: true
+        };
+
+        if (this.passwordRequired) {
+            verifyControlPassword('分组定时设置', () => {
+                this.sendGroupTimerCommandInternal(groupData, resolve, reject);
+            }, reject);
+        } else {
+            this.sendGroupTimerCommandInternal(groupData, resolve, reject);
+        }
+    }
+
+    // 内部发送分组定时命令
+    sendGroupTimerCommandInternal(groupData, resolve, reject) {
+        try {
+            const rollingCode = this.getDeviceRollingCode();
+            sendGroupTimerCommand(groupData, rollingCode, (result) => {
+                resolve(result);
+            }, (error) => {
+                reject(error);
+            });
+        } catch (error) {
+            reject(error);
+        }
+    }
+
+    // 处理日落定时命令
+    handleSunsetTimerCommand(data, resolve, reject) {
+        const { sunriseHour = 6, sunriseMinute = 0, sunsetHour = 18, sunsetMinute = 0 } = data;
 
         const sunsetData = {
-            weekDay: sunsetTimerData.weekDay || 0,
-            sunsetTime: sunsetTimerData.finalSunsetTime
+            sunriseHour: parseInt(sunriseHour) || 6,
+            sunriseMinute: parseInt(sunriseMinute) || 0,
+            sunsetHour: parseInt(sunsetHour) || 18,
+            sunsetMinute: parseInt(sunsetMinute) || 0
         };
 
-        sendSunsetTimerCommand(sunsetData,
-            () => {
-                console.log('日落定时命令发送成功');
-                this.page.setData({
-                    bluetoothSending: false
-                });
-                this.page.showStatusTip('日落定时命令发送成功');
-            },
-            (error) => {
-                console.error('日落定时命令发送失败:', error);
-                this.page.setData({
-                    bluetoothSending: false
-                });
-                wx.showModal({
-                    title: '发送失败',
-                    content: '日落定时命令发送失败，请检查蓝牙权限或重试',
-                    showCancel: false
-                });
-            }
-        );
-    }
-
-    // 处理开关模式
-    handleSwitchMode(mode, power) {
-        console.log('发送开关命令 - 电源状态:', power);
-
-        const command = power ? '11223301026677889900112233' : '11223301016677889900112233';
-        console.log('🔧 生成的开关命令:', command);
-
-        const commandName = power ? '常开' : '常关';
-
-        // 使用增强的命令队列，支持回复监听和离线检测
-        this.bluetoothManager.addCommandToQueue(command,
-            (replyData) => {
-                console.log('✅ 命令执行成功，收到设备回复:', replyData);
-                this.page.setData({
-                    bluetoothSending: false,
-                    'device.power': power,
-                    'device.mode': mode
-                });
-                this.page.showStatusTip(`${commandName}执行成功`, 1500);
-
-                // 重置离线检测状态（因为收到了回复）
-                this.bluetoothManager.resetOfflineDetection();
-            },
-            (error) => {
-                console.error('❌ 命令执行失败:', error);
-                this.page.setData({
-                    bluetoothSending: false
-                });
-
-                // 根据错误类型显示不同的提示
-                if (error.includes('离线')) {
-                    this.page.showStatusTip(`${commandName}失败：设备可能离线`, 3000);
-                } else {
-                    this.page.showStatusTip(`${commandName}发送失败`, 2000);
-                }
-            },
-            true // 期待设备回复
-        );
-    }
-
-    // 发送倒计时蓝牙命令
-    sendCountdownCommand(action, countdownTime) {
-        console.log('发送倒计时命令:', action, countdownTime);
-
-        this.page.setData({
-            bluetoothSending: true
-        });
-
-        let bleAction;
-        if (action === 'start') {
-            bleAction = 'on';
-        } else if (action === 'stop') {
-            bleAction = 'off';
+        if (this.passwordRequired) {
+            verifyControlPassword('日落定时设置', () => {
+                this.sendSunsetTimerCommandInternal(sunsetData, resolve, reject);
+            }, reject);
         } else {
-            bleAction = action;
+            this.sendSunsetTimerCommandInternal(sunsetData, resolve, reject);
         }
-
-        const countdownData = {
-            action: bleAction,
-            hours: countdownTime.hours || 0,
-            minutes: countdownTime.minutes || 0,
-            seconds: countdownTime.seconds || 0,
-            totalSeconds: countdownTime.totalSeconds || 0
-        };
-
-        console.log('BLE倒计时数据:', countdownData);
-
-        sendCountdownCommand(countdownData,
-            () => {
-                console.log('倒计时命令发送成功');
-                this.page.setData({
-                    bluetoothSending: false
-                });
-
-                const actionText = action === 'start' ? '开启' : '关闭';
-                this.page.showStatusTip(`倒计时${actionText}命令发送成功`);
-            },
-            (error) => {
-                console.error('倒计时命令发送失败:', error);
-                this.page.setData({
-                    bluetoothSending: false
-                });
-
-                wx.showModal({
-                    title: '发送失败',
-                    content: '倒计时命令发送失败，请检查蓝牙权限或重试',
-                    showCancel: false
-                });
-            }
-        );
     }
 
-    // 发送所有分组定时
-    sendAllGroupTimers(timerList) {
-        let currentIndex = 0;
-
-        const sendNext = () => {
-            if (currentIndex >= timerList.length) {
-                this.page.setData({
-                    bluetoothSending: false
-                });
-                this.page.showStatusTip('所有分组定时发送完成');
-                return;
-            }
-
-            const timer = timerList[currentIndex];
-            const timerData = {
-                index: currentIndex,
-                startTime: timer.startTime,
-                endTime: timer.endTime,
-                repeatDays: timer.repeatDays
-            };
-
-            sendGroupTimerCommand(timerData,
-                () => {
-                    console.log(`分组定时${currentIndex + 1}发送成功`);
-                    currentIndex++;
-                    setTimeout(sendNext, 1000);
-                },
-                (error) => {
-                    console.error(`分组定时${currentIndex + 1}发送失败:`, error);
-                    this.page.setData({
-                        bluetoothSending: false
-                    });
-
-                    wx.showModal({
-                        title: '发送失败',
-                        content: `分组定时${currentIndex + 1}"${timer.name}"发送失败，是否继续发送剩余定时？`,
-                        confirmText: '继续',
-                        cancelText: '停止',
-                        success: (res) => {
-                            if (res.confirm) {
-                                currentIndex++;
-                                this.page.setData({
-                                    bluetoothSending: true
-                                });
-                                setTimeout(sendNext, 1000);
-                            }
-                        }
-                    });
-                }
-            );
-        };
-
-        sendNext();
-    }
-
-    // 时间同步功能
-    syncDeviceTime() {
-        console.log('🕐 开始手动时间同步');
-
-        if (this.page.data.bluetoothSending) {
-            wx.showToast({
-                title: '正在处理中',
-                icon: 'none',
-                duration: UI_CONFIG.TOAST_NORMAL
+    // 内部发送日落定时命令
+    sendSunsetTimerCommandInternal(sunsetData, resolve, reject) {
+        try {
+            const rollingCode = this.getDeviceRollingCode();
+            sendSunsetTimerCommand(sunsetData, rollingCode, (replyData) => {
+                resolve(replyData);
+            }, (error) => {
+                reject(error);
             });
-            return;
+        } catch (error) {
+            reject(error);
         }
-
-        wx.showModal({
-            title: '时间同步',
-            content: '是否将当前系统时间同步到设备？',
-            confirmText: '同步',
-            cancelText: '取消',
-            success: (res) => {
-                if (res.confirm) {
-                    this.performTimeSync();
-                }
-            }
-        });
     }
 
-    // 执行时间同步
-    performTimeSync() {
-        this.page.setData({
-            bluetoothSending: true
-        });
+    // 处理时间同步命令
+    handleTimeSyncCommand(data, resolve, reject) {
+        const syncData = data || {};
 
-        wx.showLoading({
-            title: '正在同步时间...',
-        });
-
-        const syncData = {
-            rollingCode: this.page.data.deviceId || '112233',
-            currentTime: new Date()
-        };
-
-        console.log('🕐 准备同步时间:', {
-            deviceId: this.page.data.deviceId,
-            currentTime: syncData.currentTime.toLocaleString()
-        });
-
-        sendTimeSyncCommand(syncData,
-            () => {
-                console.log('🕐 时间同步成功');
-                wx.hideLoading();
-                this.page.setData({
-                    bluetoothSending: false
-                });
-
-                const deviceList = wx.getStorageSync('deviceList') || [];
-                const deviceIndex = deviceList.findIndex(d => d.id === this.page.data.deviceId);
-                if (deviceIndex !== -1) {
-                    deviceList[deviceIndex].lastTimeSync = Date.now();
-                    wx.setStorageSync('deviceList', deviceList);
-                }
-
-                this.page.showStatusTip('时间同步成功', UI_CONFIG.SUCCESS_TIP_DURATION);
-            },
-            (error) => {
-                console.error('🕐 时间同步失败:', error);
-                wx.hideLoading();
-                this.page.setData({
-                    bluetoothSending: false
-                });
-
-                wx.showModal({
-                    title: '时间同步失败',
-                    content: '无法同步时间到设备，请检查设备连接状态或重试。',
-                    showCancel: false
-                });
-            }
-        );
+        if (this.passwordRequired) {
+            verifyControlPassword('时间同步', () => {
+                this.sendTimeSyncCommandInternal(syncData, resolve, reject);
+            }, reject);
+        } else {
+            this.sendTimeSyncCommandInternal(syncData, resolve, reject);
+        }
     }
+
+    // 内部发送时间同步命令
+    sendTimeSyncCommandInternal(syncData, resolve, reject) {
+        try {
+            const rollingCode = this.getDeviceRollingCode();
+            sendTimeSyncCommand(rollingCode, syncData, (replyData) => {
+                resolve(replyData);
+            }, (error) => {
+                reject(error);
+            });
+        } catch (error) {
+            reject(error);
+        }
+    }
+
+    // 设置是否需要密码验证
+    setPasswordRequired(required) {
+        this.passwordRequired = required;
+    }
+
+    // 获取是否需要密码验证
+    getPasswordRequired() {
+        return this.passwordRequired;
+    }
+
+    // 时间同步
+    syncDeviceTime() {
+        console.log('📡 syncDeviceTime 调用');
+        return this.sendBluetoothCommand('timeSync', null, {});
+    }
+
+
 }
 
 export default CommandManager; 

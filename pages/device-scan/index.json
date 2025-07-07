@@ -1,4 +1,6 @@
 {
-    "usingComponents": {},
+    "usingComponents": {
+        "navigation-bar": "/components/navigation-bar/navigation-bar"
+    },
     "navigationBarTitleText": "扫描设备"
 }

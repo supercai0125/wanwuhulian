@@ -1,4 +1,4 @@
-const { sendLoopTimerCommand } = require('../../utils/BLEUtil.js')
+import { sendLoopTimerCommand } from '../../utils/BLEUtil.js'
 
 Page({
     data: {

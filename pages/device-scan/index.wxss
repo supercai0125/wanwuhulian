@@ -68,7 +68,7 @@
   background-color: white;
   border-radius: 12rpx;
   padding: 20rpx;
-  margin-bottom: 30rpx;
+  margin-bottom: 60rpx; /* 增加底部边距，避免最后一个设备被遮挡 */
 }
 
 .list-title {
@@ -146,93 +146,5 @@
   padding: 60rpx 0;
 }
 
-.divider {
-  text-align: center;
-  color: #999;
-  font-size: 26rpx;
-  margin: 30rpx 0;
-  position: relative;
-}
 
-.divider::before,
-.divider::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  width: 30%;
-  height: 1rpx;
-  background-color: #ddd;
-}
-
-.divider::before {
-  left: 10%;
-}
-
-.divider::after {
-  right: 10%;
-}
-
-.manual-add {
-  background-color: white;
-  border-radius: 12rpx;
-  padding: 20rpx;
-  margin-bottom: 60rpx; /* 增加底部边距，避免最后一个设备被遮挡 */
-}
-
-.manual-title {
-  font-size: 28rpx;
-  color: #666;
-  padding: 20rpx 0;
-  border-bottom: 1rpx solid #f0f0f0;
-  margin-bottom: 20rpx;
-}
-
-.device-types {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-.device-type {
-  width: 25%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20rpx 0;
-}
-
-.type-icon {
-  width: 100rpx;
-  height: 100rpx;
-  background-color: #f5f5f5;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 10rpx;
-}
-
-.type-icon image {
-  width: 60rpx;
-  height: 60rpx;
-}
-
-.type-name {
-  font-size: 24rpx;
-  color: #333;
-}
-
-/* 时控开关图标样式 */
-.type-icon.timer-switch {
-  background: linear-gradient(145deg, #1E90FF, #0066CC);
-  box-shadow: 0 4rpx 8rpx rgba(30, 144, 255, 0.3);
-}
-
-.icon-switch {
-  font-size: 56rpx;
-  color: white;
-  text-shadow: 0 0 5rpx rgba(255, 255, 255, 0.8);
-  font-weight: bold;
-  line-height: 100rpx;
-  position: relative;
-}
 

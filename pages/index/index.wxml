@@ -27,10 +27,10 @@
   <view class="device-list" wx:if="{{discoveredDevices.length > 0}}">
     <view class="device-item" wx:for="{{discoveredDevices}}" wx:key="rollingCode" bindtap="goToDiscoveredDeviceControl" bindlongpress="deleteDevice" data-rollingcode="{{item.rollingCode}}" data-index="{{index}}" data-offline="{{!item.isOnline}}">
       <view class="device-icon">
-        <text class="rolling-code-text">{{item.rollingCode}}</text>
+        <text class="rolling-code-text">{{item.shortRollingCode}}</text>
       </view>
       <view class="device-info">
-        <view class="device-name">设备 {{item.rollingCode}}</view>
+        <view class="device-name">{{item.displayName}}</view>
         <view class="device-status-line">
           <view class="device-online-status {{item.isOnline ? 'online' : 'offline'}}">
             <text class="status-dot">●</text>

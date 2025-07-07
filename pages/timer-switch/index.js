@@ -4,6 +4,7 @@ import { BLUETOOTH_CONFIG, UI_CONFIG } from '../../utils/config'
 import BluetoothManager from './modules/bluetooth-manager.js'
 import PasswordManager from './modules/password-manager.js'
 import CommandManager from './modules/command-manager.js'
+import unifiedBluetoothManager from '../../utils/ble/unified-manager.js'
 
 Page({
     data: {
@@ -53,6 +54,12 @@ Page({
         this.passwordManager = new PasswordManager(this);
         this.commandManager = new CommandManager(this, this.bluetoothManager);
 
+        // 设置统一蓝牙管理器的设备滚动码
+        if (deviceId) {
+            unifiedBluetoothManager.deviceRollingCode = deviceId;
+            console.log('📡 设置设备滚动码:', deviceId);
+        }
+
         // 加载设备数据并初始化蓝牙
         this.loadDeviceData();
         this.bluetoothManager.initAdapter();
@@ -64,9 +71,12 @@ Page({
         // 页面显示时重置离线检测状态，因为用户可能刚从设备扫描页面返回
         if (this.bluetoothManager) {
             this.bluetoothManager.resetOfflineDetection();
-            // 启动回复监听，但不立即发送检测命令
+            // 启动回复监听
             this.bluetoothManager.startReplyMonitoring();
         }
+
+        // 不再自动检查设备状态，避免频繁发送匹配命令
+        // 设备状态由列表页面的统一状态检测来管理
     },
 
     onHide: function () {
@@ -87,6 +97,9 @@ Page({
             this.bluetoothManager.stopReplyMonitoring();
         }
 
+        // 清理统一蓝牙管理器的命令队列
+        unifiedBluetoothManager.clearCommandQueue();
+
         // 同步设备状态到存储，确保列表页面状态一致
         this.syncDeviceStatusToStorage();
     },
@@ -97,14 +110,8 @@ Page({
             this.bluetoothManager.cleanup();
         }
 
-        // 停止设备回复监听
-        try {
-            const { stopListeningForDeviceReply } = require('../../utils/ble/core');
-            stopListeningForDeviceReply();
-            console.log('🧹 设备回复监听已停止');
-        } catch (e) {
-            console.log('🧹 停止设备回复监听时出错:', e);
-        }
+        // 清理统一蓝牙管理器的命令队列
+        unifiedBluetoothManager.clearCommandQueue();
 
         // 保存设备设置
         this.saveDeviceSettings();
@@ -116,11 +123,6 @@ Page({
         const currentCountdown = this.data.device?.timers?.countdown;
         const currentMode = this.data.device?.mode;
         const currentPower = this.data.device?.power;
-        console.log('🔄 loadDeviceData - 保存当前数据:', {
-            countdown: currentCountdown,
-            mode: currentMode,
-            power: currentPower
-        });
 
         // 从已发现设备列表中获取设备信息（包含在线状态）
         const discoveredDevices = wx.getStorageSync('discoveredDevices') || [];
@@ -140,15 +142,12 @@ Page({
                 isOnline: discoveredDevice.isOnline !== undefined ? discoveredDevice.isOnline : true,
                 lastSeen: discoveredDevice.lastSeen
             };
-            console.log('📱 从已发现设备加载数据:', deviceData.id, '在线状态:', deviceData.isOnline);
         } else if (device) {
             deviceData = {
                 ...device,
                 isOnline: device.isOnline !== undefined ? device.isOnline : true
             };
-            console.log('📱 从设备列表加载数据:', deviceData.id, '在线状态:', deviceData.isOnline);
         } else {
-            console.warn('⚠️ 未找到设备数据:', this.data.deviceId);
             return;
         }
 
@@ -159,7 +158,6 @@ Page({
 
             // 修复旧版本的数据格式兼容性问题
             if (controllerData.timers && typeof controllerData.timers.countdown === 'number') {
-                console.log('🔧 修复旧版本倒计时数据格式:', controllerData.timers.countdown);
                 controllerData.timers.countdown = null;
             }
         } else {
@@ -184,18 +182,15 @@ Page({
 
         // 如果当前内存中有有效的数据，优先使用内存中的数据
         if (currentCountdown && typeof currentCountdown === 'object' && currentCountdown.totalSeconds > 0) {
-            console.log('🔄 使用内存中的倒计时数据，避免被存储数据覆盖');
             controllerData.timers.countdown = currentCountdown;
         }
 
         // 如果当前内存中有模式和电源状态，优先使用内存中的数据（避免页面切换时重置）
         if (currentMode) {
-            console.log('🔄 使用内存中的模式数据，避免被存储数据覆盖:', currentMode);
             controllerData.mode = currentMode;
         }
 
         if (typeof currentPower === 'boolean') {
-            console.log('🔄 使用内存中的电源状态，避免被存储数据覆盖:', currentPower);
             controllerData.power = currentPower;
         }
 
@@ -204,17 +199,6 @@ Page({
                 ...deviceData,
                 ...controllerData
             }
-        });
-
-        console.log('📱 设备数据加载完成:', {
-            deviceId: this.data.deviceId,
-            mode: this.data.device?.mode,
-            power: this.data.device?.power,
-            countdown: this.data.device?.timers?.countdown,
-            countdownType: typeof this.data.device?.timers?.countdown,
-            wasCountdownPreserved: currentCountdown && typeof currentCountdown === 'object' && currentCountdown.totalSeconds > 0,
-            wasModePreserved: !!currentMode,
-            wasPowerPreserved: typeof currentPower === 'boolean'
         });
     },
 
@@ -238,7 +222,6 @@ Page({
             const currentDevice = this.data.device;
 
             if (!deviceId || !currentDevice) {
-                console.log('📊 同步状态跳过：缺少设备信息');
                 return;
             }
 
@@ -256,7 +239,6 @@ Page({
             });
 
             wx.setStorageSync('discoveredDevices', updatedDevices);
-            console.log('📊 设备状态已同步到存储:', deviceId, '在线状态:', currentDevice.isOnline);
 
             return true; // 返回成功标识
         } catch (error) {
@@ -274,7 +256,6 @@ Page({
         // 防重复点击检查
         if (this.data.lastCommandType === currentCommandType &&
             currentTime - this.data.lastCommandTime < BLUETOOTH_CONFIG.ANTI_DUPLICATE_CLICK) {
-            console.log('⚠️ 相同操作过于频繁，请稍后再试');
             wx.showToast({
                 title: '请勿重复点击',
                 icon: 'none',
@@ -285,7 +266,6 @@ Page({
 
         // 检查是否正在发送命令
         if (this.data.bluetoothSending) {
-            console.log('⚠️ 正在发送命令，请等待完成');
             wx.showToast({
                 title: '正在处理中',
                 icon: 'none',
@@ -313,29 +293,209 @@ Page({
             'group': '分组定时'
         };
 
-        // 密码验证
-        checkControlPermission(this.data.deviceId, `切换到${modeNames[mode]}模式`)
-            .then(() => {
-                // 验证成功，执行模式切换
+        // 执行模式切换的函数
+        const executeMode = () => {
+            // 对于需要额外设置的模式，检查是否已经配置
+            if (mode === 'countdown') {
+                // 检查是否已经设置了倒计时
+                const countdownTimer = this.data.device.timers?.countdown;
+                if (!countdownTimer || !countdownTimer.totalSeconds || countdownTimer.totalSeconds <= 0) {
+                    // 没有设置倒计时，提示用户先设置
+                    this.showStatusTip('请先设置倒计时时间');
+                    return;
+                }
+                // 已经设置了倒计时，准备发送倒计时命令
+                const countdownData = {
+                    action: 'start', // 启动倒计时
+                    hours: countdownTimer.hours || 0,
+                    minutes: countdownTimer.minutes || 0,
+                    seconds: countdownTimer.seconds || 0,
+                    // 添加倒计时结束后的执行操作
+                    endAction: countdownTimer.action || '关闭' // 从倒计时设置中获取
+                };
+
                 this.setData({
                     'device.mode': mode,
-                    'device.power': power,
+                    'device.power': true, // 倒计时模式默认开启
                     lastCommandTime: currentTime,
                     lastCommandType: currentCommandType
                 });
 
                 this.updateDeviceSettings('mode', mode);
-                this.updateDeviceSettings('power', power);
+                this.updateDeviceSettings('power', true);
 
-                // 发送蓝牙广播命令
-                this.commandManager.sendBluetoothCommand(mode, power);
-
-                // 显示状态提示
                 this.showStatusTip('已切换到' + modeNames[mode] + '模式');
-            })
-            .catch((error) => {
-                console.log('模式切换被取消:', error);
+
+                // 发送倒计时命令
+                this.commandManager.sendBluetoothCommand(mode, true, countdownData)
+                    .then((result) => {
+                        console.log('📡 倒计时命令发送成功:', result);
+                        this.handleCommandSuccess('倒计时设置成功');
+                    })
+                    .catch((error) => {
+                        console.error('📡 倒计时命令发送失败:', error);
+                        this.handleCommandError(error);
+                    });
+                return;
+            } else if (mode === 'loop') {
+                // 检查是否已经设置了循环定时
+                const loopTimerData = wx.getStorageSync('loopTimerData');
+                if (!loopTimerData || (!loopTimerData.startDuration && !loopTimerData.endDuration)) {
+                    this.showStatusTip('请先设置循环定时');
+                    return;
+                }
+
+                // 转换数据格式为命令需要的格式
+                const loopTimer = {
+                    startTime: loopTimerData.startDuration || '00:00:00',
+                    endTime: loopTimerData.endDuration || '00:00:00',
+                    sequenceNumber: 0 // 功能执行序号，可以根据需要递增
+                };
+
+                // 切换到循环定时模式
+                this.setData({
+                    'device.mode': mode,
+                    'device.power': true, // 循环定时模式默认开启
+                    lastCommandTime: currentTime,
+                    lastCommandType: currentCommandType
+                });
+
+                this.updateDeviceSettings('mode', mode);
+                this.updateDeviceSettings('power', true);
+
+                this.showStatusTip(`已切换到${modeNames[mode]}模式`);
+
+                // 发送循环定时命令
+                this.commandManager.sendBluetoothCommand('loop', true, loopTimer)
+                    .then((result) => {
+                        console.log('📡 循环定时命令发送成功:', result);
+                        this.handleCommandSuccess('循环定时设置成功');
+                    })
+                    .catch((error) => {
+                        console.error('📡 循环定时命令发送失败:', error);
+                        this.handleCommandError(error);
+                    });
+                return;
+            } else if (mode === 'sunset') {
+                // 检查是否已经设置了日落定时
+                const sunsetTimerData = wx.getStorageSync('sunsetTimerData');
+                if (!sunsetTimerData || !sunsetTimerData.finalSunsetTime) {
+                    this.showStatusTip('请先设置日落定时');
+                    return;
+                }
+
+                // 解析日落时间
+                const sunsetTime = sunsetTimerData.finalSunsetTime || '18:00:00';
+                const [sunsetHour, sunsetMinute] = sunsetTime.split(':').map(t => parseInt(t));
+
+                // 使用默认日出时间 6:00
+                const sunriseHour = 6;
+                const sunriseMinute = 0;
+
+                // 切换到日落定时模式
+                this.setData({
+                    'device.mode': mode,
+                    'device.power': true, // 日落定时模式默认开启
+                    lastCommandTime: currentTime,
+                    lastCommandType: currentCommandType
+                });
+
+                this.updateDeviceSettings('mode', mode);
+                this.updateDeviceSettings('power', true);
+
+                this.showStatusTip(`已切换到${modeNames[mode]}模式`);
+
+                // 发送日落定时命令
+                this.commandManager.sendBluetoothCommand('sunset', true, {
+                    sunriseHour: sunriseHour,
+                    sunriseMinute: sunriseMinute,
+                    sunsetHour: sunsetHour,
+                    sunsetMinute: sunsetMinute
+                })
+                    .then((result) => {
+                        console.log('📡 日落定时命令发送成功:', result);
+                        this.handleCommandSuccess('日落定时设置成功');
+                    })
+                    .catch((error) => {
+                        console.error('📡 日落定时命令发送失败:', error);
+                        this.handleCommandError(error);
+                    });
+                return;
+            } else if (mode === 'group') {
+                // 检查是否已经设置了分组定时
+                const groupTimers = wx.getStorageSync(`timers_${this.data.deviceId}`) || [];
+                if (groupTimers.length === 0) {
+                    this.showStatusTip('请先添加分组定时任务');
+                    return;
+                }
+
+                // 切换到分组定时模式
+                this.setData({
+                    'device.mode': mode,
+                    'device.power': true, // 分组定时模式默认开启
+                    lastCommandTime: currentTime,
+                    lastCommandType: currentCommandType
+                });
+
+                this.updateDeviceSettings('mode', mode);
+                this.updateDeviceSettings('power', true);
+
+                this.showStatusTip(`已切换到${modeNames[mode]}模式，将发送${groupTimers.length}个定时任务`);
+
+                // 发送所有分组定时命令
+                this.sendAllGroupTimers(groupTimers)
+                    .then((results) => {
+                        console.log('📡 所有分组定时命令发送成功:', results);
+                        this.handleCommandSuccess('分组定时设置成功');
+                    })
+                    .catch((error) => {
+                        console.error('📡 分组定时命令发送失败:', error);
+                        this.handleCommandError(error);
+                    });
+                return;
+            }
+
+            // 对于简单的开关模式，直接设置并发送命令
+            this.setData({
+                'device.mode': mode,
+                'device.power': power,
+                lastCommandTime: currentTime,
+                lastCommandType: currentCommandType
             });
+
+            this.updateDeviceSettings('mode', mode);
+            this.updateDeviceSettings('power', power);
+
+            // 立即显示状态提示，提供更好的用户体验
+            this.showStatusTip('已切换到' + modeNames[mode] + '模式');
+
+            // 发送蓝牙广播命令（异步，不阻塞UI）
+            this.commandManager.sendBluetoothCommand(mode, power)
+                .then((result) => {
+                    console.log('📡 模式切换命令发送成功:', result);
+                    this.handleCommandSuccess();
+                })
+                .catch((error) => {
+                    console.error('📡 模式切换命令发送失败:', error);
+                    // 只有在发送失败时才显示错误提示
+                    this.handleCommandError(error);
+                });
+        };
+
+        if (this.data.device.passwordEnabled) {
+            // 设备开启了密码保护，需要验证密码
+            checkControlPermission(this.data.deviceId, `切换到${modeNames[mode]}模式`)
+                .then(() => {
+                    // 验证成功，执行模式切换
+                    executeMode();
+                })
+                .catch((error) => {
+                    console.log('🔐 模式切换被取消:', error);
+                });
+        } else {
+            // 设备未开启密码保护，直接执行模式切换
+            executeMode();
+        }
     },
 
     // 显示倒计时设置
@@ -401,8 +561,54 @@ Page({
 
     // 时间同步 - 委托给命令管理器
     syncDeviceTime: function () {
-        this.commandManager.syncDeviceTime();
+        this.commandManager.syncDeviceTime()
+            .then((result) => {
+                console.log('📡 时间同步成功:', result);
+                this.handleCommandSuccess('时间同步成功');
+            })
+            .catch((error) => {
+                console.error('📡 时间同步失败:', error);
+                this.handleCommandError(error);
+            });
     },
+
+    // 发送所有分组定时命令
+    sendAllGroupTimers: function (groupTimers) {
+        return new Promise((resolve, reject) => {
+            const sendPromises = groupTimers.map((timer, index) => {
+                return new Promise((timerResolve, timerReject) => {
+                    // 延迟发送，避免命令冲突
+                    setTimeout(() => {
+                        this.commandManager.sendBluetoothCommand('group', true, timer)
+                            .then((result) => {
+                                console.log(`📡 分组定时${index + 1}命令发送成功:`, result);
+                                // 单个定时器成功也要更新设备状态
+                                this.updateDeviceOnlineStatus();
+                                timerResolve(result);
+                            })
+                            .catch((error) => {
+                                console.error(`📡 分组定时${index + 1}命令发送失败:`, error);
+                                // 单个定时器失败也要更新设备状态
+                                if (!error || error.includes('离线') || error.includes('超时') || error.includes('设备可能离线')) {
+                                    this.updateDeviceOfflineStatus();
+                                }
+                                timerReject(error);
+                            });
+                    }, index * 100); // 每个命令间隔100ms
+                });
+            });
+
+            Promise.all(sendPromises)
+                .then((results) => {
+                    resolve(results);
+                })
+                .catch((error) => {
+                    reject(error);
+                });
+        });
+    },
+
+
 
     // 更新设备设置到存储
     updateDeviceSettings: function (key, value) {
@@ -434,5 +640,51 @@ Page({
 
             wx.setStorageSync('deviceList', deviceList);
         }
+    },
+
+    // 统一处理命令错误
+    handleCommandError: function (error) {
+        // 显示错误提示
+        const errorMessage = error || '设备可能离线，请检查设备状态';
+        this.showStatusTip(errorMessage);
+
+        // 如果是设备离线相关的错误，更新设备状态为离线
+        if (!error || error.includes('离线') || error.includes('超时') || error.includes('设备可能离线')) {
+            this.updateDeviceOfflineStatus();
+        }
+    },
+
+    // 统一处理命令成功
+    handleCommandSuccess: function (message) {
+        // 更新设备状态为在线
+        this.updateDeviceOnlineStatus();
+    },
+
+    // 更新设备在线状态
+    updateDeviceOnlineStatus: function () {
+        // 更新页面数据中的设备状态
+        this.setData({
+            'device.isOnline': true,
+            'device.lastSeen': Date.now(),
+            deviceOfflineConfirmed: false
+        });
+
+        // 同步状态到存储
+        this.syncDeviceStatusToStorage();
+    },
+
+    // 更新设备离线状态
+    updateDeviceOfflineStatus: function () {
+        // 更新页面数据中的设备状态
+        this.setData({
+            'device.isOnline': false,
+            'device.lastSeen': Date.now(),
+            deviceOfflineConfirmed: true
+        });
+
+        // 同步状态到存储
+        this.syncDeviceStatusToStorage();
+
+        console.log('📡 设备状态已更新为离线');
     }
 }); 

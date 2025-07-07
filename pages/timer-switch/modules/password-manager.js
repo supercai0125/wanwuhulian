@@ -183,18 +183,24 @@ class PasswordManager {
         const enabled = e.detail.value;
 
         if (enabled) {
+            // 用户想要开启密码保护
             this.showPasswordSetupDialog();
+            // 先暂时恢复开关状态，等用户设置完密码后再更新
             this.page.setData({
                 'device.passwordEnabled': false
             });
         } else {
+            // 用户想要关闭密码保护
             const savedPassword = this.getSavedPassword();
             if (savedPassword) {
+                // 有密码，需要验证后才能关闭
                 this.showPasswordDisableDialog();
+                // 先暂时恢复开关状态，等用户验证完密码后再更新
                 this.page.setData({
                     'device.passwordEnabled': true
                 });
             } else {
+                // 没有密码，直接关闭
                 this.page.setData({
                     'device.passwordEnabled': false
                 });

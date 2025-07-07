@@ -1,204 +1,241 @@
 // pages/device-scan/index.js
-import { sendMatchBroadcastOnly } from '../../utils/BLEUtil'
+import unifiedBluetoothManager from '../../utils/ble/unified-manager.js'
+import { sendTimeSyncCommand } from '../../utils/ble/timeSync.js'
 
 Page({
     data: {
         deviceList: [],
         loading: true,
-        broadcastInterval: null // 广播定时器
+        broadcastInterval: null, // 广播定时器
+        isPageActive: false // 页面是否处于活动状态
     },
 
     onLoad: function () {
-        // 延迟启动，避免蓝牙适配器冲突
-        setTimeout(() => {
-            // Initialize bluetooth scan for device list
-            this.startBluetoothDevicesDiscovery();
-        }, 500);
+        console.log('🔍 设备发现页面加载');
+        this.setData({ isPageActive: true });
 
-        // 延迟启动广播，确保扫描适配器先初始化
+        // 使用统一蓝牙管理器初始化
+        this.initBluetoothManager();
+
+        // 延迟启动广播，确保初始化完成
         setTimeout(() => {
-            // Start broadcasting to trigger device responses
-            this.startBroadcastingForDiscovery();
+            if (this.data.isPageActive) {
+                this.startBroadcastingForDiscovery();
+            }
         }, 1000);
     },
 
-    onUnload: function () {
-        // 页面卸载时停止广播和扫描
-        this.stopBroadcastingForDiscovery();
-        this.stopBluetoothDevicesDiscovery();
+    onHide: function () {
+        console.log('🔍 设备发现页面隐藏，停止扫描和广播');
+        this.setData({ isPageActive: false });
+
+        // 页面隐藏时停止所有活动
+        this.stopAllActivities();
     },
 
-    startBluetoothDevicesDiscovery: function () {
+    onShow: function () {
+        console.log('🔍 设备发现页面显示');
+
+        // 只有在页面真正需要重新激活时才重启（比如从其他页面返回）
+        if (!this.data.isPageActive) {
+            this.setData({ isPageActive: true });
+
+            // 重新初始化蓝牙管理器
+            this.initBluetoothManager();
+
+            // 延迟启动广播
+            setTimeout(() => {
+                if (this.data.isPageActive) {
+                    this.startBroadcastingForDiscovery();
+                }
+            }, 500);
+        }
+    },
+
+    onUnload: function () {
+        console.log('🔍 设备发现页面卸载，彻底清理所有资源');
+        this.setData({ isPageActive: false });
+
+        // 彻底清理所有资源
+        this.stopAllActivities();
+
+        // 清理统一蓝牙管理器的状态
+        unifiedBluetoothManager.clearCommandQueue();
+        unifiedBluetoothManager.setReplyCallback(null);
+
+        console.log('🔍 已彻底清理设备发现页面的所有资源');
+    },
+
+    // 停止所有活动的统一方法
+    stopAllActivities: function () {
+        // 停止广播
+        this.stopBroadcastingForDiscovery();
+
+        // 停止蓝牙设备扫描
+        this.stopBluetoothScanning();
+
+        // 清理命令队列
+        unifiedBluetoothManager.clearCommandQueue();
+    },
+
+    // 停止蓝牙设备扫描
+    stopBluetoothScanning: function () {
+        try {
+            // 停止设备扫描
+            wx.stopBluetoothDevicesDiscovery({
+                success: () => {
+                    console.log('✅ 设备扫描已停止');
+                },
+                fail: (err) => {
+                    console.log('⚠️ 停止设备扫描失败:', err);
+                }
+            });
+        } catch (error) {
+            console.log('⚠️ 停止设备扫描异常:', error);
+        }
+    },
+
+    // 初始化蓝牙管理器
+    initBluetoothManager: function () {
         const that = this;
 
-        // Initialize Bluetooth module for device scanning (不使用peripheral模式)
-        wx.openBluetoothAdapter({
-            // 注意：扫描时不使用 mode: 'peripheral'
-            success: function (res) {
-                console.log('🔍🔍🔍 设备扫描蓝牙初始化成功', res);
+        // 初始化统一蓝牙管理器
+        unifiedBluetoothManager.init()
+            .then(() => {
+                console.log('🔍 统一蓝牙管理器初始化成功');
 
-                // 先注册设备发现监听器（必须在开始扫描之前）
-                wx.onBluetoothDeviceFound(function (res) {
-                    const devices = res.devices;
-                    if (!devices || devices.length === 0) {
-                        return;
-                    }
+                // 确保使用正确的过滤条件：监听 localName="0000" 的设备回复
+                unifiedBluetoothManager.resetDeviceFilter();
+                console.log('🔍 设备发现页面：设置过滤条件为 localName="0000"');
 
-                    devices.forEach((device, index) => {
-                        // 检查：localName为"0000"的设备（匹配命令回复）
-                        if (device.localName === '0000') {
-                            console.log('🎯 发现0000设备:', device.deviceId);
-
-                            // 打印设备回复数据并提取滚动码
-                            const rollingCode = that.printDeviceReplyDataAndExtractRollingCode(device);
-
-                            that.addDeviceToList(device, '0000设备匹配', rollingCode);
-                            return;
-                        }
-
-                        // 检查是否有13字节回复数据
-                        const hasValidReplyData = that.checkDeviceHasValidReplyData(device);
-                        if (hasValidReplyData) {
-                            console.log('🎯 发现有效回复数据的设备:', device.deviceId);
-
-                            // 打印设备回复数据并提取滚动码
-                            const rollingCode = that.printDeviceReplyDataAndExtractRollingCode(device);
-
-                            that.addDeviceToList(device, '设备有有效13字节回复数据', rollingCode);
-                        }
-                    });
+                // 设置设备回复监听
+                unifiedBluetoothManager.setReplyCallback((replyData) => {
+                    that.handleDeviceReply(replyData);
                 });
 
-                // 注册完监听器后，开始扫描
-                wx.startBluetoothDevicesDiscovery({
-                    allowDuplicatesKey: true, // 允许重复设备，便于实时更新
-                    powerLevel: "high", // 高功率扫描
-                    success: function (res) {
-                        console.log('✅✅✅ 开始扫描蓝牙设备列表成功', res);
-                    },
-                    fail: function (err) {
-                        console.error('❌❌❌ 扫描蓝牙设备失败', err);
-                        wx.showToast({
-                            title: '扫描蓝牙设备失败',
-                            icon: 'none'
-                        });
-                        that.setData({
-                            loading: false
-                        });
-                    }
-                });
-            },
-            fail: function (err) {
-                console.error('初始化蓝牙失败', err);
+                that.setData({ loading: false });
+            })
+            .catch((error) => {
+                console.error('🔍 统一蓝牙管理器初始化失败:', error);
                 wx.showToast({
-                    title: '请开启手机蓝牙',
+                    title: '蓝牙初始化失败',
                     icon: 'none'
                 });
-                that.setData({
-                    loading: false
-                });
+                that.setData({ loading: false });
+            });
+    },
+
+    // 处理设备回复
+    handleDeviceReply: function (replyData) {
+        console.log('📡 设备扫描页面收到回复:', replyData.data);
+
+        // 从回复数据中提取设备信息
+        const deviceInfo = this.parseDeviceReply(replyData.data);
+        if (deviceInfo) {
+            this.addDeviceToList(deviceInfo, '设备回复', deviceInfo.rollingCode);
+        }
+    },
+
+    // 解析设备回复数据
+    parseDeviceReply: function (hexData) {
+        try {
+            // 滚动码是两字节，即4个十六进制字符
+            if (hexData.length >= 4) {
+                const rollingCode = hexData.substring(0, 4);
+                return {
+                    deviceId: `device_${rollingCode}`,
+                    rollingCode: rollingCode,
+                    lastSeen: Date.now()
+                };
             }
-        });
+        } catch (error) {
+            console.error('解析设备回复数据失败:', error);
+        }
+        return null;
     },
 
     // 开始广播以触发设备回复
     startBroadcastingForDiscovery: function () {
-        console.log('📡 开始定期广播以触发设备回复');
+        // 先停止之前的广播，避免重复
+        this.stopBroadcastingForDiscovery();
+
+        // 检查页面是否还处于活动状态
+        if (!this.data.isPageActive) {
+            console.log('📡 页面已不活跃，跳过启动广播');
+            return;
+        }
+
+        console.log('📡 开始启动设备发现广播');
 
         // 立即发送一次匹配广播
         this.sendDiscoveryBroadcast();
 
         // 每5秒发送一次广播，避免过于频繁
-        this.data.broadcastInterval = setInterval(() => {
+        const intervalId = setInterval(() => {
+            // 在每次发送前检查页面状态
+            if (!this.data.isPageActive) {
+                console.log('📡 页面已不活跃，停止广播循环');
+                clearInterval(intervalId);
+                return;
+            }
             this.sendDiscoveryBroadcast();
         }, 5000);
+
+        this.setData({
+            broadcastInterval: intervalId
+        });
     },
 
     // 停止广播
     stopBroadcastingForDiscovery: function () {
+        console.log('⏹️ 正在停止广播...');
+
+        // 清理data中的定时器
         if (this.data.broadcastInterval) {
-            console.log('⏹️ 停止广播');
+            console.log('⏹️ 清理广播定时器');
             clearInterval(this.data.broadcastInterval);
             this.setData({
                 broadcastInterval: null
             });
         }
+
+        // 额外清理：确保没有遗留的定时器（兼容旧代码）
+        if (this.broadcastTimer) {
+            clearInterval(this.broadcastTimer);
+            this.broadcastTimer = null;
+        }
+
+        console.log('⏹️ 广播已完全停止');
     },
 
     // 发送发现广播（匹配命令）
     sendDiscoveryBroadcast: function () {
-        console.log('📡 发送发现广播（匹配命令）');
-
-        // 使用专门的匹配命令进行设备发现
-        sendMatchBroadcastOnly(
-            () => {
-                console.log('✅ 匹配广播发送成功');
-            },
-            (error) => {
-                console.log('❌ 匹配广播发送失败:', error);
-            }
-        );
-    },
-
-    // 更严格的检查函数：验证13字节回复数据的有效性
-    checkDeviceHasValidReplyData: function (device) {
-        try {
-            // 检查广播数据
-            if (device.advertisData && device.advertisData.byteLength > 0) {
-                const advertisData = new Uint8Array(device.advertisData);
-                if (advertisData.length === 13) {
-                    return this.validateReplyData(advertisData);
-                }
-            }
-
-            // 检查制造商数据
-            if (device.manufacturerData && device.manufacturerData.length > 0) {
-                for (let mfgData of device.manufacturerData) {
-                    if (mfgData.manufacturerSpecificData) {
-                        const mfgBytes = new Uint8Array(mfgData.manufacturerSpecificData);
-                        if (mfgBytes.length === 13) {
-                            return this.validateReplyData(mfgBytes);
-                        }
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('检查设备有效回复数据时出错:', error);
-        }
-        return false;
-    },
-
-    // 验证回复数据是否有效
-    validateReplyData: function (data) {
-        if (data.length !== 13) {
-            return false;
+        // 检查页面是否还处于活动状态
+        if (!this.data.isPageActive) {
+            console.log('📡 页面已不活跃，跳过发送广播');
+            return;
         }
 
-        try {
-            // 检查前3个字节是否是滚动码 112233
-            const expectedRollingCode = [0x11, 0x22, 0x33];
-            const actualRollingCode = [data[0], data[1], data[2]];
+        // 使用统一蓝牙管理器发送匹配命令
+        const matchCommand = '00000001080000000000000000'; // 正确的匹配命令格式
+        console.log('📡 设备扫描页面：发送匹配命令', matchCommand);
 
-            const isValidRollingCode = expectedRollingCode.every((byte, index) =>
-                byte === actualRollingCode[index]
-            );
-
-            if (isValidRollingCode) {
-                return true;
-            }
-
-            return false;
-
-        } catch (error) {
-            console.error('验证回复数据时出错:', error);
-            return false;
-        }
+        unifiedBluetoothManager.sendCommand(matchCommand, {
+            expectReply: true,
+            timeout: 3000
+        }).then(() => {
+            console.log('📡 设备扫描页面：匹配命令发送成功');
+        }).catch((error) => {
+            console.log('📡 设备扫描页面：匹配命令发送失败:', error);
+        });
     },
 
     // 添加设备到列表的通用函数
     addDeviceToList: function (device, reason = '设备发现', rollingCode = '') {
         // 检查设备是否已存在于当前扫描列表中
-        const existingIndex = this.data.deviceList.findIndex(d => d.deviceId === device.deviceId);
+        const existingIndex = this.data.deviceList.findIndex(d =>
+            d.deviceId === device.deviceId || d.rollingCode === rollingCode
+        );
         if (existingIndex !== -1) {
             return;
         }
@@ -206,7 +243,7 @@ Page({
         // 检查设备是否已经添加到主页面的已发现设备列表中（基于滚动码）
         if (rollingCode) {
             try {
-                const discoveredDevices = wx.getStorageSync('discoveredDevices') || [];
+                const discoveredDevices = wx.getStorageSync('discovered_devices') || [];
                 const alreadyAdded = discoveredDevices.some(d => d.rollingCode === rollingCode);
                 if (alreadyAdded) {
                     console.log('🚫 设备已存在，跳过添加:', rollingCode);
@@ -217,43 +254,21 @@ Page({
             }
         }
 
-        // 创建设备信息 - 使用滚动码作为设备名
-        let deviceName = '未知设备';
-        let displayName = '未知设备';
+        // 创建设备信息 - 使用滚动码前4位作为设备名
+        let deviceName = '智能设备';
+        let displayName = '智能设备';
 
         if (rollingCode) {
-            // 使用滚动码作为设备名
+            // 滚动码本身就是4位（两字节），直接使用
             deviceName = rollingCode;
-            displayName = rollingCode;
-        } else if (device.localName === '0000') {
-            // 0000设备但没有滚动码
-            deviceName = 'F012设备';
-            displayName = 'F012设备';
-        } else if (device.localName) {
-            // 有其他设备名的设备
-            deviceName = device.localName;
-            displayName = device.localName;
-        } else if (device.name) {
-            // 有name但没有localName的设备
-            deviceName = device.name;
-            displayName = device.name;
-        } else {
-            // 没有名称的设备，根据原因判断
-            if (reason.includes('0000') || reason.includes('F012')) {
-                deviceName = 'F012设备';
-                displayName = 'F012设备';
-            } else {
-                deviceName = '智能设备';
-                displayName = '智能设备';
-            }
+            displayName = `设备 ${rollingCode}`;
         }
 
         const deviceInfo = {
-            deviceId: device.deviceId,
+            deviceId: device.deviceId || `device_${rollingCode}`,
             name: deviceName,
-            localName: device.localName,
             displayName: displayName,
-            RSSI: device.RSSI || -999,
+            RSSI: device.RSSI || -60,
             rollingCode: rollingCode,
             isOnline: true, // 新发现的设备默认在线
             lastSeen: Date.now() // 最后发现时间
@@ -276,7 +291,7 @@ Page({
     // 保存设备到本地存储
     saveDeviceToStorage: function (deviceInfo) {
         try {
-            const savedDevices = wx.getStorageSync('discoveredDevices') || [];
+            const savedDevices = wx.getStorageSync('discovered_devices') || [];
 
             // 检查设备是否已存在
             const existingIndex = savedDevices.findIndex(d => d.rollingCode === deviceInfo.rollingCode);
@@ -301,7 +316,7 @@ Page({
                 });
             }
 
-            wx.setStorageSync('discoveredDevices', savedDevices);
+            wx.setStorageSync('discovered_devices', savedDevices);
             console.log('📱 设备已保存到本地存储');
         } catch (error) {
             console.error('保存设备到本地存储失败:', error);
@@ -447,7 +462,7 @@ Page({
         });
 
         // 导入时间同步功能
-        const { sendTimeSyncCommand } = require('../../utils/BLEUtil');
+        // 时间同步功能已在页面顶部导入
 
         // 实际设备连接逻辑
         setTimeout(() => {
@@ -457,15 +472,15 @@ Page({
             });
 
             // 准备时间同步数据
+            const rollingCode = device.rollingCode || '0000'; // 使用设备的滚动码
             const syncData = {
-                rollingCode: device.rollingCode || '112233', // 使用设备的滚动码
                 currentTime: new Date() // 当前系统时间
             };
 
-            console.log('🕐 设备连接成功，开始时间同步:', device.deviceId);
+            console.log('🕐 设备连接成功，开始时间同步:', device.deviceId, '滚动码:', rollingCode);
 
             // 发送时间同步命令
-            sendTimeSyncCommand(syncData,
+            sendTimeSyncCommand(rollingCode, syncData,
                 () => {
                     console.log('🕐 时间同步成功');
                     wx.hideLoading();
@@ -549,34 +564,6 @@ Page({
                 }
             );
         }, 2000);
-    },
-
-    addTimerSwitch: function () {
-        // Generate random ID for the manual device
-        const deviceId = 'timer_' + new Date().getTime();
-
-        // Add device to storage
-        const deviceList = wx.getStorageSync('deviceList') || [];
-        const newDevice = {
-            id: deviceId,
-            name: '时控开关',
-            type: 'timer-switch',
-            status: true
-        };
-
-        deviceList.push(newDevice);
-        wx.setStorageSync('deviceList', deviceList);
-
-        wx.showToast({
-            title: '添加成功',
-            icon: 'success',
-            duration: 1500,
-            success: function () {
-                setTimeout(() => {
-                    wx.navigateBack();
-                }, 1500);
-            }
-        });
     },
 
     // 转发分享功能

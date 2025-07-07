@@ -1,65 +1,53 @@
-import { sendTimerSwitchCommand } from './core.js'
+// 日落定时相关的蓝牙命令生成
+// 移除对core.js的依赖，只提供命令生成功能
+
+import unifiedBluetoothManager from './unified-manager.js'
 
 // 生成日落定时命令
-const generateSunsetTimerCommand = (sunsetData) => {
-    // 滚动码 (字节0-2) - 使用固定值
-    const rollingCode = '112233';
+const generateSunsetTimerCommand = (sunsetData, rollingCode) => {
+    const { sunriseHour = 6, sunriseMinute = 0, sunsetHour = 18, sunsetMinute = 0 } = sunsetData;
 
-    // 设备类型 (字节3) - 定时插座固定为1
-    const deviceType = '01';
+    // 根据协议表格，日落定时命令格式：
+    // 字节0-1: 滚动码 (2字节)
+    // 字节2: 00 (固定值)
+    // 字节3: 设备类型 (01 - 固定值)
+    // 字节4: 功能码 (06 - 日落定时功能)
+    // 字节5-6: 没有意义 (填充00)
+    // 字节7-8: 日出时分
+    // 字节9: 没有意义 (填充00)
+    // 字节10-11: 日落时分
+    // 字节12: 填充0
 
-    // 功能码 (字节4) - 日落定时为6
-    const functionCode = '06';
+    // 如果没有提供滚动码，使用默认值0000
+    const deviceRollingCode = rollingCode || '0000';
 
-    // 字节5: 无意义，填充00
-    const padding1 = '00';
+    // 转换时间为十六进制字节
+    const sunriseHourByte = sunriseHour.toString(16).padStart(2, '0');
+    const sunriseMinuteByte = sunriseMinute.toString(16).padStart(2, '0');
+    const sunsetHourByte = sunsetHour.toString(16).padStart(2, '0');
+    const sunsetMinuteByte = sunsetMinute.toString(16).padStart(2, '0');
 
-    // 星期几 (字节6) - 0-6对应周日到周六
-    const weekDay = (sunsetData.weekDay || 0).toString(16).padStart(2, '0');
-
-    // 解析日落时间 (字节7-9)
-    const sunsetTimeParts = sunsetData.sunsetTime.split(':');
-    const sunsetHour = parseInt(sunsetTimeParts[0]).toString(16).padStart(2, '0');
-    const sunsetMinute = parseInt(sunsetTimeParts[1]).toString(16).padStart(2, '0');
-    const sunsetSecond = parseInt(sunsetTimeParts[2] || 0).toString(16).padStart(2, '0');
-
-    // 字节10-12: 填充000000
-    const padding2 = '000000';
-
-    // 组合完整命令（13个字节，26个十六进制字符）
-    const command = rollingCode + deviceType + functionCode + padding1 + weekDay +
-        sunsetHour + sunsetMinute + sunsetSecond + padding2;
+    // 构建完整命令
+    const command = `${deviceRollingCode}00010600${sunriseHourByte}${sunriseMinuteByte}00${sunsetHourByte}${sunsetMinuteByte}00`;
 
     return command.toUpperCase();
-};
+}
 
 // 发送日落定时命令
-export function sendSunsetTimerCommand(sunsetData, successCallback, errorCallback) {
-    console.log('开始发送日落定时命令:', sunsetData);
-
+export function sendSunsetTimerCommand(sunsetData, rollingCode, successCallback, errorCallback) {
     try {
         // 生成日落定时命令
-        const command = generateSunsetTimerCommand(sunsetData);
-        console.log('生成的日落定时命令:', command);
+        const command = generateSunsetTimerCommand(sunsetData, rollingCode);
 
-        // 详细解析命令内容用于调试
-        console.log('日落定时命令解析:');
-        console.log('  滚动码 (字节0-2):', command.substring(0, 6));
-        console.log('  设备类型 (字节3):', command.substring(6, 8));
-        console.log('  功能码 (字节4):', command.substring(8, 10));
-        console.log('  填充 (字节5):', command.substring(10, 12));
-        console.log('  星期几 (字节6):', command.substring(12, 14));
-        console.log('  日落时 (字节7):', command.substring(14, 16));
-        console.log('  日落分 (字节8):', command.substring(16, 18));
-        console.log('  日落秒 (字节9):', command.substring(18, 20));
-        console.log('  填充 (字节10-12):', command.substring(20, 26));
-        console.log('  命令长度:', command.length, '字符 (', command.length / 2, '字节)');
-
-        // 发送命令
-        sendTimerSwitchCommand(command, successCallback, errorCallback);
+        // 使用统一管理器发送命令
+        unifiedBluetoothManager.sendCommand(command, {
+            expectReply: true, // 日落定时命令期望回复
+            timeout: 4000,
+            successCallback: successCallback,
+            errorCallback: errorCallback
+        });
 
     } catch (error) {
-        console.error('发送日落定时命令失败:', error);
         errorCallback && errorCallback(error);
     }
 }

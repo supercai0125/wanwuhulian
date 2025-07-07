@@ -123,13 +123,13 @@ const byteToString = (bytes) => {
 }
 
 
-module.exports = {
-    formatTime: formatTime,
-    inArray: inArray,
-    ab2hex: ab2hex,
-    str2ab: str2ab,
-    str2Bytes: str2Bytes,
-    byteToString: byteToString,
-    hex2int: hex2int,
-    strToHexCharCode: strToHexCharCode
+export {
+    formatTime,
+    inArray,
+    ab2hex,
+    str2ab,
+    str2Bytes,
+    byteToString,
+    hex2int,
+    strToHexCharCode
 } 

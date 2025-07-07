@@ -1,6 +1,6 @@
-import { whitening_init, whitenging_encode } from '../whitening'
-import { invert_8, invert_16, check_crc16 } from '../crc16'
-import { str2Bytes, byteToString, strToHexCharCode } from '../util'
+import { whitening_init, whitenging_encode } from '../whitening.js'
+import { invert_8, invert_16, check_crc16 } from '../crc16.js'
+import { str2Bytes, byteToString, strToHexCharCode } from '../util.js'
 
 // 生成1RF载荷数据
 const get_1rf_1payload = (address, address_length, rf_payload, rf_payload_width, output_ble_payload) => {
@@ -55,7 +55,6 @@ const get_1rf_1payload = (address, address_length, rf_payload, rf_payload_width,
 // 获取服务UUID列表
 const getServiceUUIDs = (actPayload, isIos13) => {
     let payload = byteToString(actPayload)
-    console.log('getServiceUUIDs - payload:', payload, 'isIos13:', isIos13);
     return getServiceUUIDsBySpace(payload)
 }
 
@@ -63,7 +62,6 @@ const getServiceUUIDs = (actPayload, isIos13) => {
 const getServiceUUIDsBySpace = (payload) => {
     const uuids = ['00c7']
     const uuidHexArr = []
-    console.log('payload', payload)
     if (payload) {
         let payloadArray = payload.split(' ').filter(item => item && item.length > 0);
         if (payloadArray.length % 2 != 0) {
@@ -83,12 +81,15 @@ const getServiceUUIDsBySpace = (payload) => {
         const suf = (i + 1) < 10 ? ("0" + (i + 1)) : ("" + (i + 1))
         uuids.push(pre + suf)
     }
-    console.log('uuids', uuids)
     return uuids
 }
 
 // 生成带地址的数据
 const generateDataWithAddr = (rawAddress, inputPayload, isIos) => {
+    if (!rawAddress || !inputPayload) {
+        return;
+    }
+    
     const address = Array(rawAddress.length / 2)
     for (let i = 0; i < address.length; ++i) {
         const add = str2Bytes(rawAddress.substring(i * 2, (i + 1) * 2));
@@ -97,14 +98,14 @@ const generateDataWithAddr = (rawAddress, inputPayload, isIos) => {
     let rawPayload = inputPayload;
     rawPayload = rawPayload.replace(/\s+/g, '')
     rawPayload = rawPayload.toLowerCase();
+    
     if (rawPayload.length < 2) {
-        console.error('The payload is at least 1 byte');
         return;
     }
     if (rawPayload.length % 2 != 0) {
-        console.error('payload长度必须是偶数');
         return;
     }
+    
     const payload = new Array(rawPayload.length / 2)
     for (let i = 0; i < payload.length; ++i) {
         payload[i] = str2Bytes(rawPayload.substring(i * 2, (i + 1) * 2));

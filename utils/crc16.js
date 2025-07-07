@@ -66,9 +66,8 @@ const check_crc16 = (addr, addr_length, rf_payload, payload_width) => {
 
 
 
-module.exports = {
-    check_crc16: check_crc16,
-    invert_8: invert_8,
-    invert_16: invert_16,
-
+export {
+    check_crc16,
+    invert_8,
+    invert_16
 } 

@@ -44,7 +44,7 @@ const whitenging_encode = (data, length, reg) => {
     return data
 }
 
-module.exports = {
-    whitening_init: whitening_init,
-    whitenging_encode: whitenging_encode,
+export {
+    whitening_init,
+    whitenging_encode
 } 
