@@ -5,14 +5,15 @@ import unifiedBluetoothManager from './unified-manager.js'
 
 // 生成日落定时命令
 const generateSunsetTimerCommand = (sunsetData, rollingCode) => {
-    const { sunriseHour = 6, sunriseMinute = 0, sunsetHour = 18, sunsetMinute = 0 } = sunsetData;
+    const { sunriseHour = 6, sunriseMinute = 0, sunsetHour = 18, sunsetMinute = 0, executeMode = 1 } = sunsetData;
 
     // 根据协议表格，日落定时命令格式：
     // 字节0-1: 滚动码 (2字节)
     // 字节2: 00 (固定值)
     // 字节3: 设备类型 (01 - 固定值)
     // 字节4: 功能码 (06 - 日落定时功能)
-    // 字节5-6: 没有意义 (填充00)
+    // 字节5: 没有意义 (填充00)
+    // 字节6: 执行模式 (1=白天开晚上关, 2=白天关晚上开)
     // 字节7-8: 日出时分
     // 字节9: 没有意义 (填充00)
     // 字节10-11: 日落时分
@@ -21,6 +22,9 @@ const generateSunsetTimerCommand = (sunsetData, rollingCode) => {
     // 如果没有提供滚动码，使用默认值0000
     const deviceRollingCode = rollingCode || '0000';
 
+    // 执行模式字节
+    const executeModeByte = executeMode.toString(16).padStart(2, '0');
+
     // 转换时间为十六进制字节
     const sunriseHourByte = sunriseHour.toString(16).padStart(2, '0');
     const sunriseMinuteByte = sunriseMinute.toString(16).padStart(2, '0');
@@ -28,7 +32,7 @@ const generateSunsetTimerCommand = (sunsetData, rollingCode) => {
     const sunsetMinuteByte = sunsetMinute.toString(16).padStart(2, '0');
 
     // 构建完整命令
-    const command = `${deviceRollingCode}00010600${sunriseHourByte}${sunriseMinuteByte}00${sunsetHourByte}${sunsetMinuteByte}00`;
+    const command = `${deviceRollingCode}000106${executeModeByte}00${sunriseHourByte}${sunriseMinuteByte}00${sunsetHourByte}${sunsetMinuteByte}00`;
 
     return command.toUpperCase();
 }

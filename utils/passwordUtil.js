@@ -12,12 +12,11 @@ export function checkControlPermission(deviceId, operationName) {
         // 获取设备特定的密码
         const passwordData = wx.getStorageSync(`password_${deviceId}`) || {};
         const correctPassword = passwordData.password || '123456'; // 默认密码
-        
+
         wx.showModal({
             title: '权限验证',
-            content: `${operationName}需要验证密码`,
+            placeholderText: `${operationName}需要验证密码`,
             editable: true,
-            placeholderText: '请输入密码',
             success: function (res) {
                 if (res.confirm) {
                     const inputPassword = res.content;
@@ -102,10 +101,10 @@ export function verifyControlPassword(controlType, successCallback, errorCallbac
     const correctPassword = '123456'; // 默认密码，可以从配置文件获取
 
     wx.showModal({
-        title: `${controlType}密码验证`,
-        content: '请输入设备控制密码',
+        title: '密码验证',
+        content: '',
         editable: true,
-        placeholderText: '请输入密码',
+        placeholderText: `${controlType}，请输入设备控制密码`,
         success: function (res) {
             if (res.confirm) {
                 const inputPassword = res.content;

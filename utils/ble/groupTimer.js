@@ -11,8 +11,8 @@ const generateGroupTimerCommand = (timerData, rollingCode) => {
     // 字节0-1: 滚动码 (2字节，4个十六进制字符)
     // 字节2: 第三字节 (00 - 固定值)
     // 字节3: 设备类型 (01 - 固定值)
-    // 字节4: 功能码 (05 - 分组定时功能)
-    // 字节5: 分组ID (0-15)
+    // 字节4: 功能码 (03 - 分组定时功能)
+    // 字节5: 分组ID (0-9)
     // 字节6: bit1-bit7为星期一到星期日
     // 字节7-9: 开启的时分秒
     // 字节10-12: 关闭的时分秒
@@ -20,7 +20,7 @@ const generateGroupTimerCommand = (timerData, rollingCode) => {
     // 如果没有提供滚动码，使用默认值0000
     const deviceRollingCode = rollingCode || '0000';
 
-    // 分组ID (0-15)
+    // 分组ID (0-9)
     const groupIdByte = (groupId || 0).toString(16).padStart(2, '0');
 
     // 生成星期字节：bit1-bit7为星期一到星期日
@@ -56,8 +56,8 @@ const generateGroupTimerCommand = (timerData, rollingCode) => {
     const startTimeBytes = `${startHour.toString(16).padStart(2, '0')}${startMinute.toString(16).padStart(2, '0')}${startSecond.toString(16).padStart(2, '0')}`;
     const endTimeBytes = `${endHour.toString(16).padStart(2, '0')}${endMinute.toString(16).padStart(2, '0')}${endSecond.toString(16).padStart(2, '0')}`;
 
-    // 生成命令：滚动码 + 00 + 设备类型01 + 功能码05 + 分组ID + 星期字节 + 开启时分秒 + 关闭时分秒
-    const command = `${deviceRollingCode}000105${groupIdByte}${weekBytehex}${startTimeBytes}${endTimeBytes}`;
+    // 生成命令：滚动码 + 00 + 设备类型01 + 功能码03 + 分组ID + 星期字节 + 开启时分秒 + 关闭时分秒
+    const command = `${deviceRollingCode}000103${groupIdByte}${weekBytehex}${startTimeBytes}${endTimeBytes}`;
 
     return command.toUpperCase();
 }

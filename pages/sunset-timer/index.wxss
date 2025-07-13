@@ -36,7 +36,8 @@
 
 /* 设置区域通用样式 */
 .location-settings,
-.time-settings {
+.time-settings,
+.mode-settings {
   background-color: #fff;
   margin: 20rpx;
   border-radius: 16rpx;
@@ -199,10 +200,65 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
+/* 执行模式切换样式 */
+.execute-mode-container {
+  margin: 20rpx;
+  display: flex;
+  flex-direction: row;
+  gap: 10rpx;
+}
+
+.mode-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16rpx 12rpx;
+  background-color: #f8f9fa;
+  border-radius: 8rpx;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 1rpx solid #e9ecef;
+  min-height: 70rpx;
+}
+
+.mode-option.active {
+  background-color: #1E90FF;
+  border-color: #1E90FF;
+  box-shadow: 0 2rpx 6rpx rgba(30, 144, 255, 0.25);
+}
+
+.mode-text {
+  font-size: 22rpx;
+  color: #333;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.mode-option.active .mode-text {
+  color: white;
+}
+
 /* 时间显示样式 */
 .time-display {
   padding: 30rpx;
   border-bottom: 1rpx solid #f0f0f0;
+}
+
+.time-display.clickable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #f8f9fa;
+  margin: 20rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid #e9ecef;
+  border-bottom: 1rpx solid #e9ecef;
+}
+
+.time-display.clickable:active {
+  transform: scale(0.98);
+  background-color: #e9ecef;
 }
 
 .time-info {
@@ -255,6 +311,29 @@
 
 .badge-text {
   font-weight: 500;
+}
+
+/* 编辑箭头样式 */
+.edit-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background-color: rgba(30, 144, 255, 0.1);
+}
+
+.edit-arrow .arrow-icon {
+  font-size: 24rpx;
+  color: #1E90FF;
+  font-weight: bold;
+  transform: rotate(0deg);
+  transition: transform 0.3s ease;
+}
+
+.time-display.clickable:active .edit-arrow .arrow-icon {
+  transform: rotate(90deg);
 }
 
 /* 时间选择器样式 */

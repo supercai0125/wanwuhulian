@@ -388,9 +388,9 @@ Page({
                 const sunsetTime = sunsetTimerData.finalSunsetTime || '18:00:00';
                 const [sunsetHour, sunsetMinute] = sunsetTime.split(':').map(t => parseInt(t));
 
-                // 使用默认日出时间 6:00
-                const sunriseHour = 6;
-                const sunriseMinute = 0;
+                // 解析日出时间
+                const sunriseTime = sunsetTimerData.finalSunriseTime || '06:00:00';
+                const [sunriseHour, sunriseMinute] = sunriseTime.split(':').map(t => parseInt(t));
 
                 // 切换到日落定时模式
                 this.setData({
@@ -410,7 +410,8 @@ Page({
                     sunriseHour: sunriseHour,
                     sunriseMinute: sunriseMinute,
                     sunsetHour: sunsetHour,
-                    sunsetMinute: sunsetMinute
+                    sunsetMinute: sunsetMinute,
+                    executeMode: sunsetTimerData.executeMode || 1
                 })
                     .then((result) => {
                         console.log('📡 日落定时命令发送成功:', result);

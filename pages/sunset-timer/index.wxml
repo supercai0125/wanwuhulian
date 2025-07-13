@@ -26,11 +26,11 @@
     </view>
   </view>
 
-  <!-- 日落时间设置区域 -->
+  <!-- 日出日落时间设置区域 -->
   <view class="time-settings">
     <view class="setting-title">
       <view class="title-icon">🌅</view>
-      <text>日落时间</text>
+      <text>日出日落时间</text>
     </view>
     
     <!-- 模式切换 -->
@@ -46,41 +46,99 @@
         <view class="option-icon">✋</view>
         <view class="option-content">
           <text class="option-title">手动设置</text>
-          <text class="option-desc">自定义开启时间</text>
+          <text class="option-desc">自定义日出日落时间</text>
         </view>
       </view>
     </view>
 
-    <!-- 日落时间显示 -->
-    <view class="time-display">
+    <!-- 日出时间显示 -->
+    <picker 
+      mode="time" 
+      value="{{manualSunriseTime.substring(0, 5)}}" 
+      bindchange="onManualSunriseTimeChange"
+      wx:if="{{isManualMode}}"
+    >
+      <view class="time-display clickable">
+        <view class="time-info">
+          <text class="time-label">日出时间</text>
+          <view class="time-value-container">
+            <text class="time-value">{{displaySunriseTime}}</text>
+            <view class="time-badge manual">
+              <text class="badge-text">手动</text>
+            </view>
+          </view>
+        </view>
+        <view class="edit-arrow">
+          <text class="arrow-icon">›</text>
+        </view>
+      </view>
+    </picker>
+
+    <!-- 自动模式的日出时间显示 -->
+    <view class="time-display" wx:if="{{!isManualMode}}">
       <view class="time-info">
-        <text class="time-label">日落时间</text>
+        <text class="time-label">日出时间</text>
         <view class="time-value-container">
-          <text class="time-value">{{displayTime}}</text>
-          <view class="time-badge {{isManualMode ? 'manual' : 'auto'}}">
-            <text class="badge-text">{{isManualMode ? '手动' : '自动'}}</text>
+          <text class="time-value">{{displaySunriseTime}}</text>
+          <view class="time-badge auto">
+            <text class="badge-text">自动</text>
           </view>
         </view>
       </view>
     </view>
 
-    <!-- 手动设置时间选择器 -->
+    <!-- 日落时间显示 -->
     <picker 
       mode="time" 
       value="{{manualSunsetTime.substring(0, 5)}}" 
       bindchange="onManualTimeChange"
       wx:if="{{isManualMode}}"
     >
-      <view class="time-picker">
-        <view class="picker-content">
-          <view class="picker-icon">⏰</view>
-          <text class="picker-label">修改时间</text>
+      <view class="time-display clickable">
+        <view class="time-info">
+          <text class="time-label">日落时间</text>
+          <view class="time-value-container">
+            <text class="time-value">{{displayTime}}</text>
+            <view class="time-badge manual">
+              <text class="badge-text">手动</text>
+            </view>
+          </view>
         </view>
-        <view class="picker-arrow">
+        <view class="edit-arrow">
           <text class="arrow-icon">›</text>
         </view>
       </view>
     </picker>
+
+    <!-- 自动模式的日落时间显示 -->
+    <view class="time-display" wx:if="{{!isManualMode}}">
+      <view class="time-info">
+        <text class="time-label">日落时间</text>
+        <view class="time-value-container">
+          <text class="time-value">{{displayTime}}</text>
+          <view class="time-badge auto">
+            <text class="badge-text">自动</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 执行模式设置 -->
+  <view class="mode-settings">
+    <view class="setting-title">
+      <view class="title-icon">🌅</view>
+      <text>执行模式</text>
+    </view>
+    
+    <view class="execute-mode-container">
+      <view class="mode-option {{executeMode === 1 ? 'active' : ''}}" bindtap="setExecuteMode" data-mode="1">
+        <text class="mode-text">白天开，晚上关</text>
+      </view>
+      <view class="mode-option {{executeMode === 2 ? 'active' : ''}}" bindtap="setExecuteMode" data-mode="2">
+        <text class="mode-text">白天关，晚上开</text>
+      </view>
+    </view>
   </view>
 
   <!-- 底部保存按钮 -->

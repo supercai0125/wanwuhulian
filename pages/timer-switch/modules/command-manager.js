@@ -208,13 +208,14 @@ class CommandManager {
 
     // 处理日落定时命令
     handleSunsetTimerCommand(data, resolve, reject) {
-        const { sunriseHour = 6, sunriseMinute = 0, sunsetHour = 18, sunsetMinute = 0 } = data;
+        const { sunriseHour = 6, sunriseMinute = 0, sunsetHour = 18, sunsetMinute = 0, executeMode = 1 } = data;
 
         const sunsetData = {
             sunriseHour: parseInt(sunriseHour) || 6,
             sunriseMinute: parseInt(sunriseMinute) || 0,
             sunsetHour: parseInt(sunsetHour) || 18,
-            sunsetMinute: parseInt(sunsetMinute) || 0
+            sunsetMinute: parseInt(sunsetMinute) || 0,
+            executeMode: parseInt(executeMode) || 1
         };
 
         if (this.passwordRequired) {

@@ -7,12 +7,16 @@ Page({
         locationName: '',
         sunsetTime: '18:00:00',
         manualSunsetTime: '18:00:00',
+        sunriseTime: '06:00:00',
+        manualSunriseTime: '06:00:00',
         isManualMode: false,
         isLoading: false,
         locationLoading: false,
         weekDay: 0, // 默认每天执行，不需要用户选择
         statusTip: '', // 状态提示
-        displayTime: '18:00' // 显示的时间
+        displayTime: '18:00', // 显示的日落时间
+        displaySunriseTime: '06:00', // 显示的日出时间
+        executeMode: 1 // 执行模式: 1=白天开晚上关, 2=白天关晚上开
     },
 
     onLoad() {
@@ -26,11 +30,14 @@ Page({
             this.setData({
                 sunsetTime: sunsetTimerData.sunsetTime || '18:00:00',
                 manualSunsetTime: sunsetTimerData.manualSunsetTime || '18:00:00',
+                sunriseTime: sunsetTimerData.sunriseTime || '06:00:00',
+                manualSunriseTime: sunsetTimerData.manualSunriseTime || '06:00:00',
                 isManualMode: sunsetTimerData.isManualMode || false,
                 weekDay: sunsetTimerData.weekDay || 0,
                 latitude: sunsetTimerData.latitude,
                 longitude: sunsetTimerData.longitude,
-                locationName: sunsetTimerData.locationName || ''
+                locationName: sunsetTimerData.locationName || '',
+                executeMode: sunsetTimerData.executeMode || 1
             })
             console.log('设置后的数据:', this.data)
         }
@@ -46,7 +53,14 @@ Page({
     updateDisplayTime() {
         const currentTime = this.data.isManualMode ? this.data.manualSunsetTime : this.data.sunsetTime
         const displayTime = currentTime ? currentTime.substring(0, 5) : '18:00'
-        this.setData({ displayTime })
+
+        const currentSunriseTime = this.data.isManualMode ? this.data.manualSunriseTime : this.data.sunriseTime
+        const displaySunriseTime = currentSunriseTime ? currentSunriseTime.substring(0, 5) : '06:00'
+
+        this.setData({
+            displayTime,
+            displaySunriseTime
+        })
     },
 
     // 获取当前位置
@@ -181,25 +195,31 @@ Page({
         })
     },
 
-    // 计算日落时间
+    // 计算日出日落时间
     calculateSunsetTime(latitude, longitude) {
         try {
-            const sunsetTime = this.getSunsetTime(latitude, longitude)
-            console.log('计算出的日落时间:', sunsetTime)
-            this.setData({ sunsetTime })
+            const times = this.getSunTimes(latitude, longitude)
+            console.log('计算出的日出日落时间:', times)
+            this.setData({
+                sunsetTime: times.sunset,
+                sunriseTime: times.sunrise
+            })
             this.updateDisplayTime()
             console.log('更新后的页面数据:', this.data)
-            this.showStatusTip(`日落时间已计算: ${sunsetTime.substring(0, 5)}`)
+            this.showStatusTip(`日出时间: ${times.sunrise.substring(0, 5)}, 日落时间: ${times.sunset.substring(0, 5)}`)
         } catch (error) {
-            console.error('计算日落时间失败:', error)
-            this.setData({ sunsetTime: '18:00:00' }) // 设置默认值
+            console.error('计算日出日落时间失败:', error)
+            this.setData({
+                sunsetTime: '18:00:00',
+                sunriseTime: '06:00:00'
+            })
             this.updateDisplayTime()
-            this.showStatusTip('日落时间计算失败，使用默认时间18:00')
+            this.showStatusTip('时间计算失败，使用默认时间')
         }
     },
 
-    // 简化的日落时间计算
-    getSunsetTime(latitude, longitude) {
+    // 计算日出日落时间
+    getSunTimes(latitude, longitude) {
         const now = new Date()
         console.log('计算参数:', { latitude, longitude, date: now.toDateString() })
 
@@ -213,49 +233,64 @@ Page({
             // 计算纬度弧度
             const latRad = latitude * Math.PI / 180
 
-            // 计算日落时角
+            // 计算时角
             const cosHourAngle = -Math.tan(latRad) * Math.tan(declination)
 
             // 检查极昼极夜情况
             if (cosHourAngle < -1) {
                 console.log('极昼情况，使用默认时间')
-                return '18:00:00'
+                return { sunrise: '06:00:00', sunset: '18:00:00' }
             }
             if (cosHourAngle > 1) {
                 console.log('极夜情况，使用默认时间')
-                return '18:00:00'
+                return { sunrise: '06:00:00', sunset: '18:00:00' }
             }
 
             // 计算时角（弧度转小时）
             const hourAngle = Math.acos(cosHourAngle) * 12 / Math.PI
 
-            // 计算当地日落时间（以东经120度为基准）
-            const sunsetLocal = 12 + hourAngle + (longitude - 120) / 15
+            // 计算经度偏移
+            const longitudeOffset = (longitude - 120) / 15
 
-            // 确保时间在0-24小时范围内
-            let finalTime = sunsetLocal
-            while (finalTime < 0) finalTime += 24
-            while (finalTime >= 24) finalTime -= 24
+                        // 计算当地日出时间（加1小时时区修正）
+            const sunriseLocal = 12 - hourAngle + longitudeOffset + 1
+            
+            // 计算当地日落时间（加1小时时区修正）
+            const sunsetLocal = 12 + hourAngle + longitudeOffset + 1
 
-            const hour = Math.floor(finalTime)
-            const minute = Math.floor((finalTime - hour) * 60)
-            const second = Math.floor(((finalTime - hour) * 60 - minute) * 60)
+            // 格式化时间
+            const formatTime = (time) => {
+                let finalTime = time
+                while (finalTime < 0) finalTime += 24
+                while (finalTime >= 24) finalTime -= 24
 
-            const result = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}`
+                const hour = Math.floor(finalTime)
+                const minute = Math.floor((finalTime - hour) * 60)
+                const second = Math.floor(((finalTime - hour) * 60 - minute) * 60)
+
+                return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}`
+            }
+
+            const sunrise = formatTime(sunriseLocal)
+            const sunset = formatTime(sunsetLocal)
 
             console.log('计算过程:', {
                 dayOfYear,
                 declination: declination * 180 / Math.PI,
                 hourAngle: hourAngle.toFixed(2),
-                longitudeOffset: (longitude - 120) / 15,
+                longitudeOffset: longitudeOffset.toFixed(2),
+                sunriseLocal: sunriseLocal.toFixed(2),
                 sunsetLocal: sunsetLocal.toFixed(2),
-                result
+                sunrise,
+                sunset
             })
+            
+            console.log('时间修正说明: 已添加1小时时区修正')
 
-            return result
+            return { sunrise, sunset }
         } catch (error) {
-            console.error('日落时间计算出错:', error)
-            return '18:00:00'
+            console.error('计算过程出错:', error)
+            return { sunrise: '06:00:00', sunset: '18:00:00' }
         }
     },
 
@@ -274,9 +309,9 @@ Page({
 
         this.setData({ isManualMode: false })
         this.updateDisplayTime()
-        this.showStatusTip('已切换到自动模式')
+        this.showStatusTip('已切换到自动计算模式，日出日落时间将自动计算')
 
-        // 如果有位置信息，重新计算日落时间
+        // 如果有位置信息，重新计算日出日落时间
         if (this.data.latitude && this.data.longitude) {
             this.calculateSunsetTime(this.data.latitude, this.data.longitude)
         }
@@ -288,7 +323,7 @@ Page({
 
         this.setData({ isManualMode: true })
         this.updateDisplayTime()
-        this.showStatusTip('已切换到手动模式')
+        this.showStatusTip('已切换到手动设置模式，可自定义日出日落时间')
     },
 
     // 选择手动日落时间
@@ -316,11 +351,35 @@ Page({
         }, 2000)
     },
 
+    // 设置执行模式
+    setExecuteMode(e) {
+        const mode = parseInt(e.currentTarget.dataset.mode)
+        this.setData({
+            executeMode: mode
+        })
+
+        const modeText = mode === 1 ? '白天开，晚上关' : '白天关，晚上开'
+        this.showStatusTip(`已切换到${modeText}模式`)
+    },
+
+
+
+    // 手动设置日出时间
+    onManualSunriseTimeChange(e) {
+        const time = e.detail.value + ':00'
+        this.setData({
+            manualSunriseTime: time
+        })
+        this.updateDisplayTime()
+        this.showStatusTip(`日出时间已设置为 ${e.detail.value}`)
+    },
+
     // 保存日落定时设置
     saveSunsetTimer() {
-        const { latitude, longitude, locationName, sunsetTime, manualSunsetTime, isManualMode, weekDay } = this.data
+        const { latitude, longitude, locationName, sunsetTime, manualSunsetTime, sunriseTime, manualSunriseTime, isManualMode, weekDay, executeMode } = this.data
 
         const finalSunsetTime = isManualMode ? manualSunsetTime : sunsetTime
+        const finalSunriseTime = isManualMode ? manualSunriseTime : sunriseTime
 
         const sunsetTimerData = {
             latitude,
@@ -328,9 +387,13 @@ Page({
             locationName,
             sunsetTime,
             manualSunsetTime,
+            sunriseTime,
+            manualSunriseTime,
             isManualMode,
             weekDay,
-            finalSunsetTime
+            finalSunsetTime,
+            finalSunriseTime,
+            executeMode
         }
 
         wx.setStorageSync('sunsetTimerData', sunsetTimerData)
