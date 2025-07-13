@@ -28,17 +28,13 @@ class UnifiedBluetoothManager {
         this.commandQueue = [];
         this.pendingCommands = new Map();
         this.commandTimeouts = new Map();
-        this.replyTimeout = 12000; // 12秒超时，增加容错时间
+        this.replyTimeout = 8000; // 8秒超时
 
         // 设备状态监控
         this.consecutiveFailures = 0;
-        this.maxConsecutiveFailures = 5; // 增加到5次连续失败才判定离线
+        this.maxConsecutiveFailures = 3;
         this.deviceOfflineNotified = false;
         this.isInitialCheck = true;
-
-        // 重试机制
-        this.maxRetries = 2; // 最大重试次数
-        this.retryDelay = 1000; // 重试延迟1秒
 
         // 设备过滤和滚动码管理
         this.currentFilterName = '0000'; // 初始监听0000设备
@@ -98,16 +94,13 @@ class UnifiedBluetoothManager {
             // 先初始化广播适配器
             this.initAdvertiseAdapter()
                 .then(() => {
-                    console.log('📡 广播适配器初始化完成，开始初始化监听适配器');
                     // 再初始化监听适配器
                     return this.initDiscoveryAdapter();
                 })
                 .then(() => {
-                    console.log('📡 蓝牙适配器初始化完成');
                     resolve();
                 })
                 .catch((error) => {
-                    console.error('📡 蓝牙适配器初始化失败:', error);
                     reject(error);
                 });
         });
@@ -116,22 +109,18 @@ class UnifiedBluetoothManager {
     // 初始化广播适配器（参考panMini的initAdvertiseAdapter）
     initAdvertiseAdapter() {
         return new Promise((resolve, reject) => {
-            console.log('📡 正在初始化广播适配器...');
             wx.openBluetoothAdapter({
                 mode: 'peripheral',
                 success: async (res) => {
-                    console.log('📡 广播适配器初始化成功');
                     this.advertiseAdapter = true;
                     try {
                         await this.createAdvertiseServer();
                         resolve();
                     } catch (error) {
-                        console.error('📡 创建广播服务器失败:', error);
                         reject(error);
                     }
                 },
                 fail: (res) => {
-                    console.error('📡 广播适配器初始化失败:', res);
                     reject(res);
                 }
             });
@@ -162,15 +151,12 @@ class UnifiedBluetoothManager {
     // 创建广播服务器（参考panMini的createBLEPeripheralServer）
     createAdvertiseServer() {
         return new Promise((resolve, reject) => {
-            console.log('📡 正在创建广播服务器...');
             wx.createBLEPeripheralServer().then(res => {
                 this.advertiseServer = res.server;
                 this.advertiseReady = true;
-                console.log('📡 广播服务器创建成功');
                 resolve();
             }).catch(err => {
                 this.advertiseReady = false;
-                console.error('📡 广播服务器创建失败:', err);
                 reject(err);
             });
         });
@@ -218,7 +204,6 @@ class UnifiedBluetoothManager {
                 timeout: timeout,
                 timestamp: Date.now(),
                 id: Date.now() + Math.random(),
-                retries: 0, // 初始重试次数为0
                 successCallback: (result) => {
                     successCallback && successCallback(result);
                     resolve(result);
@@ -389,15 +374,6 @@ class UnifiedBluetoothManager {
     handleCommandSuccess(commandId, replyData) {
         const commandItem = this.pendingCommands.get(commandId);
         if (commandItem) {
-            // 命令成功，重置失败计数
-            this.consecutiveFailures = 0;
-            this.deviceOfflineNotified = false;
-
-            // 记录重试信息（如果有重试）
-            if (commandItem.retries && commandItem.retries > 0) {
-                console.log(`📡 命令重试成功，重试次数: ${commandItem.retries}`);
-            }
-
             // 清除超时定时器
             if (this.commandTimeouts.has(commandId)) {
                 clearTimeout(this.commandTimeouts.get(commandId));
@@ -425,36 +401,7 @@ class UnifiedBluetoothManager {
     handleCommandTimeout(commandId) {
         const commandItem = this.pendingCommands.get(commandId);
         if (commandItem) {
-            // 检查是否可以重试
-            const currentRetries = commandItem.retries || 0;
-
-            if (currentRetries < this.maxRetries) {
-                // 重试命令
-                console.log(`📡 命令超时，正在重试 (${currentRetries + 1}/${this.maxRetries}):`, commandItem.command);
-
-                // 清除当前超时定时器
-                this.commandTimeouts.delete(commandId);
-
-                // 增加重试计数
-                commandItem.retries = currentRetries + 1;
-                commandItem.timestamp = Date.now(); // 更新时间戳
-
-                // 延迟后重新发送
-                setTimeout(() => {
-                    this.sendBroadcast(commandItem);
-
-                    // 重新设置超时定时器
-                    const timeoutId = setTimeout(() => {
-                        this.handleCommandTimeout(commandId);
-                    }, commandItem.timeout);
-
-                    this.commandTimeouts.set(commandId, timeoutId);
-                }, this.retryDelay);
-
-                return;
-            }
-
-            // 重试次数用完，移除命令和定时器
+            // 移除命令和定时器
             this.pendingCommands.delete(commandId);
             this.commandTimeouts.delete(commandId);
 
@@ -463,7 +410,7 @@ class UnifiedBluetoothManager {
 
             // 调用错误回调
             if (commandItem.errorCallback) {
-                commandItem.errorCallback(`设备响应超时，已重试${this.maxRetries}次`);
+                commandItem.errorCallback('设备可能离线，请检查设备状态');
             }
 
             // 检查是否需要提醒设备离线
@@ -483,9 +430,7 @@ class UnifiedBluetoothManager {
     // 发送广播（参考panMini的startAdvertising）
     sendBroadcast(commandItem) {
         if (!this.advertiseReady || !this.advertiseServer) {
-            const errorMsg = `广播服务器未准备好 - advertiseReady: ${this.advertiseReady}, advertiseServer: ${!!this.advertiseServer}`;
-            console.error('📤 发送命令失败:', errorMsg);
-            commandItem.errorCallback && commandItem.errorCallback(errorMsg);
+            commandItem.errorCallback && commandItem.errorCallback('广播服务器未准备好');
             return;
         }
 
