@@ -54,7 +54,7 @@
     <!-- 日出时间显示 -->
     <picker 
       mode="time" 
-      value="{{manualSunriseTime.substring(0, 5)}}" 
+      value="{{displaySunriseTime}}" 
       bindchange="onManualSunriseTimeChange"
       wx:if="{{isManualMode}}"
     >
@@ -90,7 +90,7 @@
     <!-- 日落时间显示 -->
     <picker 
       mode="time" 
-      value="{{manualSunsetTime.substring(0, 5)}}" 
+      value="{{displayTime}}" 
       bindchange="onManualTimeChange"
       wx:if="{{isManualMode}}"
     >

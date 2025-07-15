@@ -9,7 +9,7 @@ Page({
             name: '定时1',
             startTime: '08:00:00', // 新增时自动设置为当前时间+1分钟
             endTime: '09:00:00',   // 新增时自动设置为开始时间+5分钟
-            repeatDays: [1, 2, 3, 4, 5] // 默认工作日，确保始终是数组
+            repeatDays: [0, 1, 2, 3, 4, 5, 6] // 默认每天，确保始终是数组
         },
         // 时间选择器数据
         timePickerRange: [
@@ -23,8 +23,8 @@ Page({
         startTimeValue: [8, 0, 0], // 新增时自动设置为当前时间+1分钟
         endTimeValue: [9, 0, 0],    // 新增时自动设置为开始时间+5分钟
         // 重复模式
-        repeatMode: 'workdays', // once, daily, workdays, weekends, custom
-        repeatModeDescription: '周一至周五重复执行'
+        repeatMode: 'daily', // once, daily, workdays, weekends, custom
+        repeatModeDescription: '每天重复执行'
     },
 
     onLoad: function (options) {
@@ -282,8 +282,8 @@ Page({
                 // 保持当前选择，但确保至少选择一天
                 repeatDays = [...(this.data.formData.repeatDays || [])];
                 if (repeatDays.length === 0) {
-                    // 如果没有选择任何天，默认选择工作日
-                    repeatDays = [1, 2, 3, 4, 5];
+                    // 如果没有选择任何天，默认选择每天
+                    repeatDays = [0, 1, 2, 3, 4, 5, 6];
                 }
                 description = this.getCustomDescription(repeatDays);
                 break;
@@ -368,11 +368,13 @@ Page({
         const timerId = this.data.timerId;
         const isEdit = this.data.isEdit;
 
-        // 创建定时对象
+        // 创建定时对象，确保数据格式正确
         const timer = {
             id: timerId || this.generateTimerId(),
             name: this.generateTimerName(),
-            ...this.data.formData,
+            startTime: this.data.formData.startTime || '08:00:00',
+            endTime: this.data.formData.endTime || '09:00:00',
+            repeatDays: Array.isArray(this.data.formData.repeatDays) ? this.data.formData.repeatDays : [0, 1, 2, 3, 4, 5, 6],
             createdAt: new Date().getTime(),
             updatedAt: new Date().getTime()
         };
@@ -417,9 +419,9 @@ Page({
 
     // 识别重复模式
     identifyRepeatMode: function (repeatDays) {
-        // 分组定时不支持单次模式，如果没有重复日期，默认为工作日
+        // 分组定时不支持单次模式，如果没有重复日期，默认为每天
         if (!repeatDays || !Array.isArray(repeatDays) || repeatDays.length === 0) {
-            return 'workdays';
+            return 'daily';
         }
 
         // 检查是否为每天
@@ -452,7 +454,7 @@ Page({
             case 'custom':
                 return this.getCustomDescription(repeatDays);
             default:
-                return '周一至周五重复执行'; // 默认工作日
+                return '每天重复执行'; // 默认每天
         }
     },
 }) 

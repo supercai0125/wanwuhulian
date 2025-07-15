@@ -31,8 +31,8 @@ const generateSunsetTimerCommand = (sunsetData, rollingCode) => {
     const sunsetHourByte = sunsetHour.toString(16).padStart(2, '0');
     const sunsetMinuteByte = sunsetMinute.toString(16).padStart(2, '0');
 
-    // 构建完整命令
-    const command = `${deviceRollingCode}000106${executeModeByte}00${sunriseHourByte}${sunriseMinuteByte}00${sunsetHourByte}${sunsetMinuteByte}00`;
+    // 构建完整命令 - 修复：字节5填充00，字节6放执行模式
+    const command = `${deviceRollingCode}00010600${executeModeByte}${sunriseHourByte}${sunriseMinuteByte}00${sunsetHourByte}${sunsetMinuteByte}00`;
 
     return command.toUpperCase();
 }

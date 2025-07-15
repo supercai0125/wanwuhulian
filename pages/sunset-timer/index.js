@@ -32,30 +32,63 @@ Page({
                 manualSunsetTime: sunsetTimerData.manualSunsetTime || '18:00:00',
                 sunriseTime: sunsetTimerData.sunriseTime || '06:00:00',
                 manualSunriseTime: sunsetTimerData.manualSunriseTime || '06:00:00',
-                isManualMode: sunsetTimerData.isManualMode || false,
+                isManualMode: !!sunsetTimerData.isManualMode,
                 weekDay: sunsetTimerData.weekDay || 0,
-                latitude: sunsetTimerData.latitude,
-                longitude: sunsetTimerData.longitude,
+                latitude: sunsetTimerData.latitude || null,
+                longitude: sunsetTimerData.longitude || null,
                 locationName: sunsetTimerData.locationName || '',
                 executeMode: sunsetTimerData.executeMode || 1
             })
             console.log('设置后的数据:', this.data)
         }
 
-        // 更新显示时间
+        // 确保数据完整性后更新显示时间
+        this.ensureDataIntegrity()
         this.updateDisplayTime()
 
         // 自动获取位置信息
         this.getCurrentLocation()
     },
 
+    // 确保数据完整性
+    ensureDataIntegrity() {
+        const currentData = this.data
+        const safeData = {
+            sunsetTime: currentData.sunsetTime || '18:00:00',
+            manualSunsetTime: currentData.manualSunsetTime || '18:00:00',
+            sunriseTime: currentData.sunriseTime || '06:00:00',
+            manualSunriseTime: currentData.manualSunriseTime || '06:00:00',
+            displayTime: currentData.displayTime || '18:00',
+            displaySunriseTime: currentData.displaySunriseTime || '06:00'
+        }
+
+        // 只在数据有变化时才更新
+        let needUpdate = false
+        for (let key in safeData) {
+            if (currentData[key] !== safeData[key]) {
+                needUpdate = true
+                break
+            }
+        }
+
+        if (needUpdate) {
+            this.setData(safeData)
+        }
+    },
+
     // 更新显示时间
     updateDisplayTime() {
-        const currentTime = this.data.isManualMode ? this.data.manualSunsetTime : this.data.sunsetTime
-        const displayTime = currentTime ? currentTime.substring(0, 5) : '18:00'
+        // 确保数据存在并且是有效的字符串
+        const sunsetTime = this.data.sunsetTime || '18:00:00'
+        const manualSunsetTime = this.data.manualSunsetTime || '18:00:00'
+        const sunriseTime = this.data.sunriseTime || '06:00:00'
+        const manualSunriseTime = this.data.manualSunriseTime || '06:00:00'
+        
+        const currentTime = this.data.isManualMode ? manualSunsetTime : sunsetTime
+        const displayTime = currentTime && typeof currentTime === 'string' && currentTime.length >= 5 ? currentTime.substring(0, 5) : '18:00'
 
-        const currentSunriseTime = this.data.isManualMode ? this.data.manualSunriseTime : this.data.sunriseTime
-        const displaySunriseTime = currentSunriseTime ? currentSunriseTime.substring(0, 5) : '06:00'
+        const currentSunriseTime = this.data.isManualMode ? manualSunriseTime : sunriseTime
+        const displaySunriseTime = currentSunriseTime && typeof currentSunriseTime === 'string' && currentSunriseTime.length >= 5 ? currentSunriseTime.substring(0, 5) : '06:00'
 
         this.setData({
             displayTime,
@@ -201,12 +234,12 @@ Page({
             const times = this.getSunTimes(latitude, longitude)
             console.log('计算出的日出日落时间:', times)
             this.setData({
-                sunsetTime: times.sunset,
-                sunriseTime: times.sunrise
+                sunsetTime: times.sunset || '18:00:00',
+                sunriseTime: times.sunrise || '06:00:00'
             })
             this.updateDisplayTime()
             console.log('更新后的页面数据:', this.data)
-            this.showStatusTip(`日出时间: ${times.sunrise.substring(0, 5)}, 日落时间: ${times.sunset.substring(0, 5)}`)
+            this.showStatusTip(`日出时间: ${times.sunrise ? times.sunrise.substring(0, 5) : '06:00'}, 日落时间: ${times.sunset ? times.sunset.substring(0, 5) : '18:00'}`)
         } catch (error) {
             console.error('计算日出日落时间失败:', error)
             this.setData({
@@ -328,8 +361,9 @@ Page({
 
     // 选择手动日落时间
     onManualTimeChange(e) {
+        const timeValue = e.detail.value || '18:00'
         this.setData({
-            manualSunsetTime: e.detail.value + ':00'
+            manualSunsetTime: timeValue + ':00'
         })
         this.updateDisplayTime()
     },
@@ -366,12 +400,13 @@ Page({
 
     // 手动设置日出时间
     onManualSunriseTimeChange(e) {
-        const time = e.detail.value + ':00'
+        const timeValue = e.detail.value || '06:00'
+        const time = timeValue + ':00'
         this.setData({
             manualSunriseTime: time
         })
         this.updateDisplayTime()
-        this.showStatusTip(`日出时间已设置为 ${e.detail.value}`)
+        this.showStatusTip(`日出时间已设置为 ${timeValue}`)
     },
 
     // 保存日落定时设置

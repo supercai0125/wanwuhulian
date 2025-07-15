@@ -30,7 +30,9 @@ Page({
         const formattedList = timerList.map(timer => {
             return {
                 ...timer,
-                repeatText: this.formatRepeatText(timer.repeatDays)
+                startTime: timer.startTime || '08:00:00',
+                endTime: timer.endTime || '09:00:00',
+                repeatText: this.formatRepeatText(timer.repeatDays || [])
             };
         });
 
@@ -42,6 +44,11 @@ Page({
     // 格式化重复时间文本
     formatRepeatText: function (repeatDays) {
         const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+
+        // 确保repeatDays是数组
+        if (!Array.isArray(repeatDays)) {
+            return '配置错误';
+        }
 
         // 分组定时不支持单次，如果没有重复日期，显示错误状态
         if (repeatDays.length === 0) {
@@ -132,16 +139,5 @@ Page({
         this.showStatusTip('定时已删除');
     },
 
-    // 保存并返回首页
-    saveAndReturn: function () {
-        wx.showToast({
-            title: '分组定时已保存',
-            icon: 'success'
-        });
 
-        // 延迟返回，让用户看到保存成功的提示
-        setTimeout(() => {
-            wx.navigateBack();
-        }, 1500);
-    }
 }) 

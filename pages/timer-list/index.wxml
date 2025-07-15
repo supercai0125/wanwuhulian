@@ -13,7 +13,7 @@
           <text class="icon-timer">⏰</text>
         </view>
         <view class="timer-details">
-          <view class="timer-time">{{item.startTime}} ~ {{item.endTime}}</view>
+          <view class="timer-time">{{item.startTime || '08:00:00'}} ~ {{item.endTime || '09:00:00'}}</view>
           <view class="timer-name">{{item.name}}</view>
           <view class="timer-repeat">{{item.repeatText}}</view>
         </view>
@@ -56,6 +56,5 @@
   <!-- 底部按钮 -->
   <view class="bottom-actions">
     <view class="action-btn add-btn" bindtap="addTimer">添加定时</view>
-    <view class="action-btn save-btn" bindtap="saveAndReturn">保存</view>
   </view>
 </view> 
