@@ -3,8 +3,6 @@
     "pages/index/index",
     "pages/device-scan/index",
     "pages/timer-switch/index",
-    "pages/timer-list/index",
-    "pages/timer-add/index",
     "pages/countdown/index",
     "pages/loop-timer/index",
     "pages/sunset-timer/index"
