@@ -172,46 +172,7 @@
   font-weight: 500;
 }
 
-/* 设备在线状态 */
-.device-status {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  margin-top: 8rpx;
-}
 
-.online-indicator {
-  width: 16rpx;
-  height: 16rpx;
-  border-radius: 50%;
-  transition: all 0.3s ease;
-}
-
-.online-indicator.online {
-  background-color: #4CAF50;
-  box-shadow: 0 0 0 4rpx rgba(76, 175, 80, 0.2);
-  animation: onlinePulse 2s infinite;
-}
-
-.online-indicator.offline {
-  background-color: #F44336;
-  box-shadow: 0 0 0 4rpx rgba(244, 67, 54, 0.2);
-}
-
-@keyframes onlinePulse {
-  0%, 100% {
-    box-shadow: 0 0 0 4rpx rgba(76, 175, 80, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 0 8rpx rgba(76, 175, 80, 0.1);
-  }
-}
-
-.online-text {
-  font-size: 24rpx;
-  color: #666;
-  font-weight: 400;
-}
 
 /* 设备离线警告 */
 .offline-warning {

@@ -406,17 +406,17 @@ class UnifiedBluetoothManager {
             this.commandTimeouts.delete(commandId);
 
             // 增加失败计数
-            this.consecutiveFailures++;
+            //this.consecutiveFailures++;
 
             // 调用错误回调
-            if (commandItem.errorCallback) {
+            /* if (commandItem.errorCallback) {
                 commandItem.errorCallback('设备可能离线，请检查设备状态');
-            }
+            } */
 
             // 检查是否需要提醒设备离线
-            if (this.consecutiveFailures >= this.maxConsecutiveFailures && !this.deviceOfflineNotified) {
+            /* if (this.consecutiveFailures >= this.maxConsecutiveFailures && !this.deviceOfflineNotified) {
                 this.notifyDeviceOffline();
-            }
+            } */
 
             // 只有在队列不为空时才处理下一个命令
             setTimeout(() => {

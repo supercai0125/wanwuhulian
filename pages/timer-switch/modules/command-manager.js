@@ -173,13 +173,14 @@ class CommandManager {
             return;
         }
 
-        // 转换为分组定时命令格式
+        // 转换为分组定时命令格式，保留所有重要字段包括groupId
         const groupData = {
             id: data.id || 'timer_' + Date.now(),
             name: data.name || '定时任务',
             startTime: data.startTime,
             endTime: data.endTime,
             repeatDays: data.repeatDays,
+            groupId: data.groupId, // 保留groupId字段
             enabled: true
         };
 

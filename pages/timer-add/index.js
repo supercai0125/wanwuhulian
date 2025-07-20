@@ -368,6 +368,26 @@ Page({
         const timerId = this.data.timerId;
         const isEdit = this.data.isEdit;
 
+        // 获取现有定时列表以分配groupId
+        let timerList = wx.getStorageSync(`timers_${deviceId}`) || [];
+
+        // 计算groupId
+        let groupId = 0;
+        if (isEdit) {
+            // 编辑模式：保持原有的groupId
+            const existingTimer = timerList.find(t => t.id === timerId);
+            groupId = existingTimer ? existingTimer.groupId : 0;
+        } else {
+            // 添加模式：找到下一个可用的groupId (0-9)
+            const usedGroupIds = timerList.map(t => t.groupId || 0);
+            for (let i = 0; i <= 9; i++) {
+                if (!usedGroupIds.includes(i)) {
+                    groupId = i;
+                    break;
+                }
+            }
+        }
+
         // 创建定时对象，确保数据格式正确
         const timer = {
             id: timerId || this.generateTimerId(),
@@ -375,12 +395,10 @@ Page({
             startTime: this.data.formData.startTime || '08:00:00',
             endTime: this.data.formData.endTime || '09:00:00',
             repeatDays: Array.isArray(this.data.formData.repeatDays) ? this.data.formData.repeatDays : [0, 1, 2, 3, 4, 5, 6],
+            groupId: groupId, // 添加groupId字段
             createdAt: new Date().getTime(),
             updatedAt: new Date().getTime()
         };
-
-        // 获取现有定时列表
-        let timerList = wx.getStorageSync(`timers_${deviceId}`) || [];
 
         if (isEdit) {
             // 编辑模式：更新现有定时

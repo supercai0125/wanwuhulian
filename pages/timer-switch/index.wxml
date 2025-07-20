@@ -21,10 +21,6 @@
     </view>
     <view class="status-info">
       <text class="status-text">开关{{device.power ? '开启' : '关闭'}}</text>
-      <view class="device-status">
-        <view class="online-indicator {{device.isOnline ? 'online' : 'offline'}}"></view>
-        <text class="online-text">{{device.isOnline ? '在线' : '离线'}}</text>
-      </view>
     </view>
   </view>
   

@@ -26,7 +26,6 @@ Page({
             power: false,
             mode: 'off',
             passwordEnabled: false,
-            isOnline: true, // 设备在线状态
             lastSeen: Date.now(), // 最后一次通信时间
             timers: {
                 countdown: null,
@@ -139,13 +138,11 @@ Page({
                 id: discoveredDevice.rollingCode,
                 name: `设备 ${discoveredDevice.rollingCode}`,
                 type: 'timer-switch',
-                isOnline: discoveredDevice.isOnline !== undefined ? discoveredDevice.isOnline : true,
                 lastSeen: discoveredDevice.lastSeen
             };
         } else if (device) {
             deviceData = {
-                ...device,
-                isOnline: device.isOnline !== undefined ? device.isOnline : true
+                ...device
             };
         } else {
             return;
@@ -231,7 +228,6 @@ Page({
                 if (device.rollingCode === deviceId) {
                     return {
                         ...device,
-                        isOnline: currentDevice.isOnline !== undefined ? currentDevice.isOnline : device.isOnline,
                         lastSeen: currentDevice.lastSeen || device.lastSeen || Date.now()
                     };
                 }
@@ -576,19 +572,46 @@ Page({
     // 发送所有分组定时命令
     sendAllGroupTimers: function (groupTimers) {
         return new Promise((resolve, reject) => {
-            const sendPromises = groupTimers.map((timer, index) => {
+            // 为没有groupId的定时器分配ID
+            const timersWithGroupId = groupTimers.map((timer, index) => {
+                // 如果定时器没有groupId，则根据索引分配
+                if (timer.groupId === undefined || timer.groupId === null) {
+                    timer.groupId = index; // 使用索引作为groupId (0-9)
+                }
+
+                return timer;
+            });
+
+            // 按照groupId从小到大排序，确保发送顺序正确
+            const sortedTimers = timersWithGroupId.sort((a, b) => {
+                const groupIdA = a.groupId || 0;
+                const groupIdB = b.groupId || 0;
+                return groupIdA - groupIdB;
+            });
+
+            sortedTimers.forEach((timer, index) => {
+                console.log(`📡 序号${index + 1}, groupId:${timer.groupId}:`, {
+                    timerId: timer.id,
+                    groupId: timer.groupId,
+                    startTime: timer.startTime,
+                    endTime: timer.endTime,
+                    repeatDays: timer.repeatDays
+                });
+            });
+
+            const sendPromises = sortedTimers.map((timer, index) => {
                 return new Promise((timerResolve, timerReject) => {
                     // 延迟发送，避免命令冲突
                     setTimeout(() => {
                         this.commandManager.sendBluetoothCommand('group', true, timer)
                             .then((result) => {
-                                console.log(`📡 分组定时${index + 1}命令发送成功:`, result);
+                                console.log(`📡 分组定时${index + 1}(groupId:${timer.groupId})命令发送成功:`, result);
                                 // 单个定时器成功也要更新设备状态
                                 this.updateDeviceOnlineStatus();
                                 timerResolve(result);
                             })
                             .catch((error) => {
-                                console.error(`📡 分组定时${index + 1}命令发送失败:`, error);
+                                console.error(`📡 分组定时${index + 1}(groupId:${timer.groupId})命令发送失败:`, error);
                                 // 单个定时器失败也要更新设备状态
                                 if (!error || error.includes('离线') || error.includes('超时') || error.includes('设备可能离线')) {
                                     this.updateDeviceOfflineStatus();
@@ -663,9 +686,8 @@ Page({
 
     // 更新设备在线状态
     updateDeviceOnlineStatus: function () {
-        // 更新页面数据中的设备状态
+        // 更新设备最后通信时间
         this.setData({
-            'device.isOnline': true,
             'device.lastSeen': Date.now(),
             deviceOfflineConfirmed: false
         });
@@ -676,9 +698,8 @@ Page({
 
     // 更新设备离线状态
     updateDeviceOfflineStatus: function () {
-        // 更新页面数据中的设备状态
+        // 更新设备最后通信时间
         this.setData({
-            'device.isOnline': false,
             'device.lastSeen': Date.now(),
             deviceOfflineConfirmed: true
         });

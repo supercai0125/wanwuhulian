@@ -7,6 +7,15 @@ import unifiedBluetoothManager from './unified-manager.js'
 const generateGroupTimerCommand = (timerData, rollingCode) => {
     const { groupId, startTime, endTime, repeatDays } = timerData;
 
+    // 调试信息：记录传入的定时器数据
+    console.log('🔧 生成分组定时命令，定时器数据:', {
+        groupId: groupId,
+        startTime: startTime,
+        endTime: endTime,
+        repeatDays: repeatDays,
+        timerData: timerData
+    });
+
     // 根据协议表格，分组定时命令格式：
     // 字节0-1: 滚动码 (2字节，4个十六进制字符)
     // 字节2: 第三字节 (00 - 固定值)
@@ -20,8 +29,9 @@ const generateGroupTimerCommand = (timerData, rollingCode) => {
     // 如果没有提供滚动码，使用默认值0000
     const deviceRollingCode = rollingCode || '0000';
 
-    // 分组ID (0-9)
-    const groupIdByte = (groupId || 0).toString(16).padStart(2, '0');
+    // 分组ID (0-9)，确保使用有效的groupId
+    const finalGroupId = (groupId !== undefined && groupId !== null) ? groupId : 0;
+    const groupIdByte = finalGroupId.toString(16).padStart(2, '0');
 
     // 生成星期字节：bit1-bit7为星期一到星期日
     // repeatDays数组：0=周日, 1=周一, 2=周二, ..., 6=周六
