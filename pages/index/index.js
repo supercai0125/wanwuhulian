@@ -1,5 +1,6 @@
 // index.js
 import unifiedBluetoothManager from '../../utils/ble/unified-manager.js'
+import { parseDeviceReply } from '../../utils/ble/function-code-parser.js'
 
 Page({
     data: {
@@ -33,6 +34,13 @@ Page({
             setTimeout(() => {
                 this.loadDiscoveredDevices();
             }, 100);
+        }
+
+        // 进入我的设备页面时，自动检查一次设备状态
+        if (this.data.discoveredDevices.length > 0) {
+            setTimeout(() => {
+                this.checkDevicesOnlineStatus();
+            }, 500); // 延迟500ms执行，避免页面切换时的冲突
         }
     },
 
@@ -278,7 +286,16 @@ Page({
 
         if (rollingCode) {
             console.log('📡 提取到滚动码:', rollingCode);
-            this.updateDeviceOnlineStatus(rollingCode);
+
+            // 解析设备回复中的功能码和模式
+            const parsedReply = parseDeviceReply(replyData.data);
+            if (parsedReply && parsedReply.isValid) {
+                console.log('📡 解析到设备模式:', parsedReply.mode, '(', parsedReply.modeName, ')');
+                this.updateDeviceOnlineStatus(rollingCode, parsedReply);
+            } else {
+                console.log('📡 未能解析设备模式，仅更新在线状态');
+                this.updateDeviceOnlineStatus(rollingCode);
+            }
         } else {
             console.log('📡 未能提取到有效的滚动码');
         }
@@ -298,7 +315,7 @@ Page({
     },
 
     // 更新设备在线状态
-    updateDeviceOnlineStatus: function (rollingCode) {
+    updateDeviceOnlineStatus: function (rollingCode, parsedReply = null) {
         // 记录已检测到的设备
         if (this.detectedDevices) {
             this.detectedDevices.add(rollingCode);
@@ -309,10 +326,20 @@ Page({
             const discoveredDevices = wx.getStorageSync('discovered_devices') || [];
             const updatedDevices = discoveredDevices.map(savedDevice => {
                 if (savedDevice.rollingCode === rollingCode) {
-                    return Object.assign({}, savedDevice, {
+                    const updateData = {
                         isOnline: true,
                         lastSeen: Date.now()
-                    });
+                    };
+
+                    // 如果解析到了模式信息，也更新设备模式
+                    if (parsedReply && parsedReply.isValid) {
+                        updateData.currentMode = parsedReply.mode;
+                        updateData.currentModeName = parsedReply.modeName;
+                        updateData.functionCode = parsedReply.functionCode;
+                        console.log('📡 更新设备模式信息:', rollingCode, '->', parsedReply.mode, '(', parsedReply.modeName, ')');
+                    }
+
+                    return Object.assign({}, savedDevice, updateData);
                 }
                 return savedDevice;
             });

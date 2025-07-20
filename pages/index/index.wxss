@@ -204,6 +204,8 @@ page {
   margin-right: 6rpx;
 }
 
+
+
 .device-last-seen {
   font-size: 22rpx;
   color: #888;

@@ -5,6 +5,7 @@ import BluetoothManager from './modules/bluetooth-manager.js'
 import PasswordManager from './modules/password-manager.js'
 import CommandManager from './modules/command-manager.js'
 import unifiedBluetoothManager from '../../utils/ble/unified-manager.js'
+import { parseDeviceReply } from '../../utils/ble/function-code-parser.js'
 
 Page({
     data: {
@@ -74,8 +75,8 @@ Page({
             this.bluetoothManager.startReplyMonitoring();
         }
 
-        // 不再自动检查设备状态，避免频繁发送匹配命令
-        // 设备状态由列表页面的统一状态检测来管理
+        // 进入控制详情页面时，自动发送设备状态检测命令
+        this.sendDeviceStatusCheck();
     },
 
     onHide: function () {
@@ -116,6 +117,94 @@ Page({
         this.saveDeviceSettings();
     },
 
+    // 发送设备状态检测命令
+    sendDeviceStatusCheck: function () {
+        if (!this.data.deviceId) {
+            console.log('📡 设备ID为空，跳过状态检测');
+            return;
+        }
+
+        console.log('📡 控制详情页面：开始设备状态检测');
+
+        // 设置设备回复监听
+        unifiedBluetoothManager.setReplyCallback((replyData) => {
+            this.handleDeviceStatusReply(replyData);
+        });
+
+        // 生成状态检测命令
+        // 命令格式：滚动码(2字节) + 00 + 设备类型01 + 功能码08 + 填充0 (总共13字节=26字符)
+        const statusCommand = `${this.data.deviceId}0001080000000000000000`;
+
+        console.log('📡 控制详情页面：发送状态检测命令:', statusCommand);
+
+        // 发送状态检测命令
+        unifiedBluetoothManager.sendCommand(statusCommand, {
+            expectReply: true,
+            timeout: 5000, // 5秒超时
+            successCallback: (result) => {
+                console.log('📡 控制详情页面：状态检测命令发送成功');
+            },
+            errorCallback: (error) => {
+                console.log('📡 控制详情页面：状态检测命令发送失败:', error);
+                // 清理回复监听
+                unifiedBluetoothManager.setReplyCallback(null);
+            }
+        });
+    },
+
+    // 处理设备状态检测回复
+    handleDeviceStatusReply: function (replyData) {
+        console.log('📡 控制详情页面收到设备回复:', replyData.data, '来自设备:', replyData.rollingCode);
+
+        // 解析设备回复中的功能码和模式
+        const parsedReply = parseDeviceReply(replyData.data);
+        if (parsedReply && parsedReply.isValid) {
+            console.log('📡 控制详情页面：解析到设备模式:', parsedReply.mode, '(', parsedReply.modeName, ')');
+
+            // 更新设备模式信息
+            this.updateDeviceMode(parsedReply);
+        } else {
+            console.log('📡 控制详情页面：未能解析设备模式');
+        }
+
+        // 清理回复监听
+        unifiedBluetoothManager.setReplyCallback(null);
+    },
+
+    // 更新设备模式信息
+    updateDeviceMode: function (parsedReply) {
+        try {
+            // 更新内存中的设备模式
+            this.setData({
+                'device.mode': parsedReply.mode,
+                'device.currentModeName': parsedReply.modeName
+            });
+
+            // 根据模式设置电源状态
+            let power = false;
+            if (parsedReply.mode === 'on') {
+                power = true;
+            } else if (parsedReply.mode === 'off') {
+                power = false;
+            }
+            // 其他模式（倒计时、循环定时等）保持当前电源状态
+
+            this.setData({
+                'device.power': power
+            });
+
+            // 显示模式更新提示
+            wx.showToast({
+                title: `当前模式：${parsedReply.modeName}`,
+                icon: 'none',
+                duration: 2000
+            });
+
+        } catch (error) {
+            console.error('📡 更新设备模式失败:', error);
+        }
+    },
+
     // 加载设备数据
     loadDeviceData: function () {
         // 保存当前内存中的数据（如果存在）
@@ -124,7 +213,7 @@ Page({
         const currentPower = this.data.device?.power;
 
         // 从已发现设备列表中获取设备信息（包含在线状态）
-        const discoveredDevices = wx.getStorageSync('discoveredDevices') || [];
+        const discoveredDevices = wx.getStorageSync('discovered_devices') || [];
         const discoveredDevice = discoveredDevices.find(d => d.rollingCode === this.data.deviceId);
 
         // 从设备列表中获取控制器配置
@@ -138,7 +227,11 @@ Page({
                 id: discoveredDevice.rollingCode,
                 name: `设备 ${discoveredDevice.rollingCode}`,
                 type: 'timer-switch',
-                lastSeen: discoveredDevice.lastSeen
+                lastSeen: discoveredDevice.lastSeen,
+                // 加载设备的模式信息
+                currentMode: discoveredDevice.currentMode,
+                currentModeName: discoveredDevice.currentModeName,
+                functionCode: discoveredDevice.functionCode
             };
         } else if (device) {
             deviceData = {
@@ -191,6 +284,19 @@ Page({
             controllerData.power = currentPower;
         }
 
+        // 如果从已发现设备中获取到了模式信息，使用设备的模式信息
+        if (discoveredDevice && discoveredDevice.currentMode) {
+            controllerData.mode = discoveredDevice.currentMode;
+            controllerData.currentModeName = discoveredDevice.currentModeName;
+
+            // 根据模式设置电源状态
+            if (discoveredDevice.currentMode === 'on') {
+                controllerData.power = true;
+            } else if (discoveredDevice.currentMode === 'off') {
+                controllerData.power = false;
+            }
+        }
+
         this.setData({
             device: {
                 ...deviceData,
@@ -223,7 +329,7 @@ Page({
             }
 
             // 更新已发现设备列表中的状态
-            const discoveredDevices = wx.getStorageSync('discoveredDevices') || [];
+            const discoveredDevices = wx.getStorageSync('discovered_devices') || [];
             const updatedDevices = discoveredDevices.map(device => {
                 if (device.rollingCode === deviceId) {
                     return {
@@ -234,7 +340,7 @@ Page({
                 return device;
             });
 
-            wx.setStorageSync('discoveredDevices', updatedDevices);
+            wx.setStorageSync('discovered_devices', updatedDevices);
 
             return true; // 返回成功标识
         } catch (error) {
